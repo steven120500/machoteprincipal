@@ -55,7 +55,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
         ? { firstName, lastName, email, password } 
         : { email, password };
 
-      const res = await fetch(`${API_BASE}/api/auth/${endpoint}`, {
+      const res = await fetch(`${API_BASE}/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
