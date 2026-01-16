@@ -1,20 +1,19 @@
 import nodemailer from 'nodemailer';
 
 const sendEmail = async (options) => {
-  // 1. Configuramos el transportador de forma explícita
   const transporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true para puerto 465, false para otros
+    port: 587,
+    secure: false, // ⚠️ Importante: false para puerto 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    // Añadimos configuración de TLS para entornos de nube como Render
+    // ✅ Forzamos IPv4 para evitar que Render intente conectar por IPv6 y falle
+    family: 4, 
     tls: {
-      rejectUnauthorized: false 
-    },
-    connectionTimeout: 10000, // 10 segundos de espera
+      rejectUnauthorized: false
+    }
   });
 
   const mailOptions = {
@@ -24,7 +23,6 @@ const sendEmail = async (options) => {
     html: options.message,
   };
 
-  // 2. Enviamos el correo
   await transporter.sendMail(mailOptions);
 };
 
