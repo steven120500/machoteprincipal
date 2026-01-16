@@ -1,10 +1,14 @@
 import mongoose from 'mongoose';
 
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  password: { type: String, required: true, select: false },
-  roles: [{ type: String }], // Ej: ['admin', 'agregar_producto', 'ver_pedidos']
-  isSuperUser: { type: Boolean, default: false } // Solo uno debe tener true
-})
+  firstName: { type: String, required: true, trim: true }, // Nombre
+  lastName:  { type: String, required: true, trim: true }, // Apellido
+  email:     { type: String, required: true, unique: true, lowercase: true, trim: true }, // Correo (Login)
+  password:  { type: String, required: true, select: false },
+  roles:     [{ type: String }], // Ej: ['admin']
+  isSuperUser: { type: Boolean, default: false }
+}, {
+  timestamps: true // Esto agrega createdAt y updatedAt automáticamente
+});
 
 export default mongoose.model('User', userSchema);

@@ -4,19 +4,29 @@ import { toast } from 'react-toastify';
 import { FiEye, FiEyeOff, FiX } from 'react-icons/fi';
 import 'react-toastify/dist/ReactToastify.css';
 
-const GOLD = '#9E8F91';
+// ✅ URL Blindada
+const API_BASE = import.meta.env.VITE_API_URL || "https://machoteprincipal.onrender.com";
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName]   = useState('');
+  const [email, setEmail]         = useState('');
+  const [password, setPassword]   = useState('');
   
-  // Estado para saber si estamos en modo Registro o Login
   const [isRegister, setIsRegister] = useState(false); 
-  
   const [showPassword, setShowPassword] = useState(false);
   const cardRef = useRef(null);
 
-  // Cerrar con Escape y al click fuera
+  useEffect(() => {
+    if (isOpen) {
+      setFirstName('');
+      setLastName('');
+      setEmail('');
+      setPassword('');
+      setIsRegister(false); // Siempre abrir en Login por defecto
+    }
+  }, [isOpen]);
+
   useEffect(() => {
     if (!isOpen) return;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -28,38 +38,43 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!username || !password) {
-      toast.warn('Todos los campos son requeridos');
+
+    if (!email || !password) {
+      toast.warn('Correo y contraseña son obligatorios');
+      return;
+    }
+    if (isRegister && (!firstName || !lastName)) {
+      toast.warn('Nombre y apellido son obligatorios para registrarse');
       return;
     }
 
-    // Decide a qué endpoint llamar según la pestaña activa
     const endpoint = isRegister ? 'register' : 'login';
 
     try {
-      // ⚠️ CORRECCIÓN IMPORTANTE: Quité la doble barra '//' que tenías antes de 'api'
-      const res = await fetch(
-        `https://machoteprincipal.onrender.com/api/auth/${endpoint}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username, password }),
-        }
-      );
+      const payload = isRegister 
+        ? { firstName, lastName, email, password } 
+        : { email, password };
+
+      const res = await fetch(`${API_BASE}/api/auth/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
       
-      // Si falla, lanzamos error
-      if (!res.ok) throw new Error(data.message || data.error || 'Error en la solicitud');
+      if (!res.ok) throw new Error(data.message || 'Error en la solicitud');
 
       if (isRegister) {
-        // Si es registro, avisamos y cambiamos a la pestaña de login
-        toast.success('¡Usuario registrado! Ahora inicia sesión.');
-        setIsRegister(false); // Cambia automáticamente a la pestaña de login
+        toast.success('¡Registro exitoso! Por favor inicia sesión.');
+        setIsRegister(false);
       } else {
-        // Si es login exitoso
         const userData = {
-          username: data.username,
+          id: data.id,
+          username: data.firstName, 
+          firstName: data.firstName,
+          lastName: data.lastName,
+          email: data.email,
           roles: data.roles,
           isSuperUser: data.isSuperUser,
         };
@@ -67,11 +82,11 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
         localStorage.setItem('user', JSON.stringify(userData));
         onLoginSuccess?.(userData);
         onClose?.();
-        toast.success(`Bienvenido, ${data.username}`);
+        toast.success(`Hola de nuevo, ${data.firstName}`);
       }
     } catch (err) {
       console.error(err);
-      toast.error(err.message || 'Error desconocido');
+      toast.error(err.message || 'Error de conexión');
     }
   };
 
@@ -84,114 +99,120 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     >
       <div
         ref={cardRef}
-        className="relative w-full max-w-sm rounded-xl bg-white shadow-2xl"
+        className="relative w-full max-w-sm rounded-xl bg-white shadow-2xl overflow-hidden"
       >
-        {/* Botón Cerrar (X) */}
+        {/* Botón Cerrar (Subido un poco con top-2) */}
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 p-1 rounded-md hover:bg-black/5 text-gray-500"
-          aria-label="Cerrar"
-          title="Cerrar"
+          className="absolute right-3 top-2 p-1 rounded-md fondo-plateado text-black z-10 transition"
         >
-          <FiX size={22} />
+          <FiX size={24} />
         </button>
 
-        {/* Header con tabs (Pestañas) */}
-        <div className="px-6 pt-8 pb-4">
-          <div className="flex items-center justify-center gap-4 text-sm font-semibold">
-            
-            {/* Pestaña: Iniciar Sesión */}
-            <button
-              type="button"
-              onClick={() => setIsRegister(false)}
-              className={`px-4 py-2 rounded-md transition ${
-                !isRegister
-                  ? 'text-black shadow-sm'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-              style={!isRegister ? { backgroundColor: GOLD } : {}}
-            >
-              Iniciar Sesión
-            </button>
-            
-            {/* Pestaña: Registrarse (NUEVO) */}
-            <button
-              type="button"
-              onClick={() => setIsRegister(true)}
-              className={`px-4 py-2 rounded-md transition ${
-                isRegister
-                  ? 'text-black shadow-sm'
-                  : 'text-gray-400 hover:text-gray-600'
-              }`}
-              style={isRegister ? { backgroundColor: GOLD } : {}}
-            >
-              Registrarse
-            </button>
-
-          </div>
+        {/* Título (Ya no es botón, es texto centrado) */}
+        <div className="pt-8 pb-2 text-center">
+          <h2 className="text-xl font-bold text-gray-800">
+            {isRegister ? 'Crear Cuenta' : 'Iniciar Sesión'}
+          </h2>
         </div>
 
-        {/* Línea decorativa */}
-        <div
-          className="h-[2px] w-full opacity-50"
-          style={{ backgroundColor: GOLD }}
-        />
-
         {/* Formulario */}
-        <form onSubmit={handleSubmit} className="px-6 py-6 space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-4 space-y-4">
+          
+          {isRegister && (
+            <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Juan"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-gray-400 outline-none text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Apellido</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Pérez"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-gray-400 outline-none text-sm"
+                />
+              </div>
+            </div>
+          )}
+
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Usuario
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Correo Electrónico</label>
             <input
-              type="text"
-              placeholder="Nombre de usuario"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-opacity-50"
-              style={{ focusRingColor: GOLD }}
+              type="email"
+              placeholder="tu@correo.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:ring-2 focus:ring-gray-400 outline-none"
             />
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">
-              Contraseña
-            </label>
+            <label className="block text-xs font-medium text-gray-700 mb-1">Contraseña</label>
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Tu contraseña"
+                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-opacity-50"
-                style={{ focusRingColor: GOLD }}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 focus:ring-2 focus:ring-gray-400 outline-none"
               />
+              {/* 👁️ Icono de Ojo alineado perfectamente (top-1/2) */}
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-3 top-0 -translate-y-1/2 text-gray-400 hover:text-gray-600 bg-transparent flex items-center justify-center"
               >
                 {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
               </button>
             </div>
           </div>
 
-          {/* Botón Principal (Cambia el texto según el modo) */}
-          <button
-            type="submit"
-            className="w-full rounded-lg py-2.5 font-semibold text-black transition hover:opacity-90 shadow-md mt-2"
-            style={{ backgroundColor: GOLD }}
-          >
-            {isRegister ? 'Crear Cuenta' : 'Ingresar'}
-          </button>
+          {/* Botones de acción */}
+          <div className="pt-2 space-y-4">
+            <button
+              type="submit"
+              className="w-full rounded-lg py-2.5 font-bold text-black transition hover:brightness-110 shadow-md fondo-plateado"
+            >
+              {isRegister ? 'Registrarse' : 'Entrar'}
+            </button>
 
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-lg border border-gray-300 py-2 font-semibold text-gray-600 hover:bg-gray-50 transition"
-          >
-            Cancelar
-          </button>
+            {/* 👇 Texto inferior para cambiar entre Login/Registro */}
+            <div className="text-center text-sm text-gray-600 pb-2">
+              {isRegister ? (
+                <>
+                  ¿Ya tienes cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsRegister(false)}
+                    className="font-bold bg-transparent underline hover:text-black transition"
+                  >
+                    Inicia sesión aquí
+                  </button>
+                </>
+              ) : (
+                <>
+                  ¿No tienes cuenta?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsRegister(true)}
+                    className="font-bold bg-transparent underline hover:text-black transition"
+                  >
+                    Regístrate aquí
+                  </button>
+                </>
+              )}
+            </div>
+            
+          </div>
         </form>
       </div>
     </div>
