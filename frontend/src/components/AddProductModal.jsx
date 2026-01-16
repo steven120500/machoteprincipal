@@ -4,7 +4,7 @@ import { toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import tallaPorTipo from "../utils/tallaPorTipo";
 
-const API_BASE = import.meta.env.VITE_API_BASE || "https://machoteprincipal.onrender.com/";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://machoteprincipal.onrender.com";
 const MAX_IMAGES = 2;
 const MAX_WIDTH = 1000;
 const QUALITY = 0.75;
