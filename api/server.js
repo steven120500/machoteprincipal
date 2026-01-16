@@ -64,7 +64,7 @@ app.use('/api/history', historyRoutes);
 app.use('/api/products', productRoutes);
 
 // raíz (opcional)
-app.get('/', (_req, res) => res.send('Chema Sport ER API'));
+app.get('/', (_req, res) => res.send('MACHOTE BACKEND'));
 
 /* -------- manejo de errores -------- */
 app.use((_req, res) => res.status(404).json({ error: 'Ruta no encontrada' }));
