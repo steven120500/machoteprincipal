@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { FaWhatsapp, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
-// 👇 1. Importamos motion y AnimatePresence (Necesario para el slide de fotos)
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = 'https://machoteprincipal.onrender.com';
+// ✅ MEJORA 1: Usamos la misma lógica que en AddProduct para evitar errores de URL
+const API_BASE = import.meta.env.VITE_API_URL || "https://machoteprincipal.onrender.com";
 
 const TALLAS_ADULTO = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
 const TALLAS_NINO   = ['16', '18', '20', '22', '24', '26', '28'];
@@ -40,19 +40,14 @@ export default function ProductModal({
   user,
 }) {
   const modalRef = useRef(null);
-
-  // Estado para controlar la visualización del cuadro de confirmación
   const [showConfirmDelete, setShowConfirmDelete] = useState(false);
-
   const [viewProduct, setViewProduct] = useState(product);
   const [isEditing, setIsEditing] = useState(false);
 
   const [editedStock,  setEditedStock]  = useState(product.stock  || {});
   const [editedName,   setEditedName]   = useState(product?.name || '');
   const [editedPrice,  setEditedPrice]  = useState(product?.price ?? 0);
-  const [editedDiscountPrice, setEditedDiscountPrice] = useState(
-    product?.discountPrice ?? ''
-  );
+  const [editedDiscountPrice, setEditedDiscountPrice] = useState(product?.discountPrice ?? '');
   const [editedType,   setEditedType]   = useState(product?.type || 'Player');
   const [editedIsNew,  setEditedIsNew]  = useState(Boolean(product?.isNew));
   const [loading,      setLoading]      = useState(false);
@@ -104,7 +99,7 @@ export default function ProductModal({
 
     const id = product?._id || product?.id;
     if (!id || !isLikelyObjectId(id)) {
-      toast.error('ID inválido');
+      toast.error('ID de producto inválido');
       return;
     }
 
@@ -113,7 +108,6 @@ export default function ProductModal({
       const displayName = user?.username || user?.email || 'FutStore';
 
       const priceInt = Math.max(0, parseInt(editedPrice, 10) || 0);
-
       let discountInt = null;
       if (editedDiscountPrice !== '' && !isNaN(Number(editedDiscountPrice))) {
         const val = parseInt(editedDiscountPrice, 10);
@@ -147,32 +141,20 @@ export default function ProductModal({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error ${res.status}`);
+      }
 
       const updated = await res.json();
       setViewProduct(updated);
-      setEditedName(updated.name || '');
-      setEditedPrice(updated.price ?? 0);
-      setEditedDiscountPrice(updated.discountPrice ?? '');
-      setEditedType(updated.type || 'Player');
-      setEditedStock({ ...(updated.stock  || {}) });
-      setEditedIsNew(Boolean(updated.isNew));
-      setLocalImages(
-        updated?.images?.length
-          ? updated.images.map(img => ({ src: typeof img === 'string' ? img : img.url, isNew: false }))
-          : [
-              ...(updated?.imageSrc  ? [{ src: updated.imageSrc,  isNew: false }] : []),
-              ...(updated?.imageSrc2 ? [{ src: updated.imageSrc2, isNew: false }] : []),
-            ]
-      );
-      setIdx(0);
-
       onUpdate?.(updated);
       setIsEditing(false);
+      toast.success('Producto actualizado');
       
     } catch (err) {
       console.error(err);
-      toast.error('Error al actualizar el producto');
+      toast.error(err.message || 'Error al actualizar');
     } finally {
       setLoading(false);
     }
@@ -183,7 +165,7 @@ export default function ProductModal({
     
     const id = product?._id || product?.id;
     if (!id || !isLikelyObjectId(id)) {
-      toast.error('ID inválido');
+      toast.error('ID inválido, no se puede eliminar');
       setShowConfirmDelete(false); 
       return;
     }
@@ -191,18 +173,26 @@ export default function ProductModal({
     try {
       setLoading(true);
       const displayName = user?.username || 'FutStore';
+      
       const res = await fetch(`${API_BASE}/api/products/${encodeURIComponent(id)}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json', 'x-user': displayName },
       });
       
-      if (!res.ok) throw new Error(`Error ${res.status}`);
+      // ✅ MEJORA 2: Leemos el error real del backend si falla
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || `Error ${res.status} al eliminar`);
+      }
       
+      toast.success('Producto eliminado correctamente');
       onUpdate?.(null, id);
       onClose?.();
 
-    } catch {
-      toast.error('No se pudo eliminar');
+    } catch (err) {
+      console.error("Error eliminando:", err);
+      // ✅ MEJORA 3: Mostramos el error real en el toast
+      toast.error(err.message || 'No se pudo eliminar');
     } finally {
       setLoading(false);
       setShowConfirmDelete(false); 
@@ -254,7 +244,6 @@ export default function ProductModal({
   const displayUrl = currentSrc ? transformCloudinary(currentSrc, MODAL_IMG_MAX_W) : '';
 
   return (
-    // 🔽 1. ANIMACIÓN DEL FONDO (Fade in)
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
@@ -263,7 +252,6 @@ export default function ProductModal({
       className="mt-10 mb-16 fixed inset-0 z-50 bg-black/40 flex items-center justify-center py-6 backdrop-blur-sm"
       onClick={onClose}
     >
-      {/* 🔽 2. ANIMACIÓN DEL MODAL (Scale Pop-up) */}
       <motion.div
         ref={modalRef}
         onClick={(e) => e.stopPropagation()} 
@@ -273,7 +261,6 @@ export default function ProductModal({
         transition={{ type: "spring", damping: 25, stiffness: 300 }}
         className="relative pt-12 pb-24 bg-white p-6 rounded-lg shadow-md max-w-md w-full max-h-screen overflow-y-auto"
       >
-        {/* Botón cerrar */}
         <button
           onClick={onClose}
           className="absolute fondo-plateado mr-2 top-12 right-2 text-black bg-black rounded p-1"
@@ -282,7 +269,6 @@ export default function ProductModal({
           <FaTimes size={30} />
         </button>
 
-        {/* Encabezado */}
         <div className="mt-16 mb-2 text-left">
           {isEditing && canEdit ? (
             <>
@@ -341,24 +327,20 @@ export default function ProductModal({
           )}
         </div>
 
-        {/* 🔽 3. IMAGEN CON ANIMACIÓN (SLIDE + FADE) */}
         {!isEditing ? (
-          <div className="relative mb-4 flex items-center justify-center h-[400px] overflow-hidden"> {/* Height fijo para evitar saltos */}
+          <div className="relative mb-4 flex items-center justify-center h-[400px] overflow-hidden">
             <AnimatePresence mode="wait">
               {displayUrl ? (
                 <motion.img
-                  key={displayUrl} // 🔑 CRUCIAL: React detecta el cambio de URL y dispara la animación
+                  key={displayUrl}
                   src={displayUrl}
                   alt={viewProduct?.name}
                   className="rounded max-h-[400px] object-contain cursor-grab active:cursor-grabbing"
-                  
-                  // Efecto Deslizar
                   initial={{ opacity: 0, x: 50 }}
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: -50 }}
                   transition={{ duration: 0.2, ease: "easeInOut" }}
-                  
-                  loading="eager" // ⚡ Carga instantánea para que se vea el efecto
+                  loading="eager"
                   draggable="false"
                 />
               ) : (
@@ -409,7 +391,6 @@ export default function ProductModal({
           </div>
         )}
 
-        {/* Precio */}
         {!isEditing && (
           <div className="mt-2 text-right">
             {viewProduct?.discountPrice ? (
@@ -429,7 +410,6 @@ export default function ProductModal({
           </div>
         )}
 
-        {/* Stock */}
         <div className="mt-4">
           <p className="font-semibold mb-2">Stock por talla:</p>
           {tallasVisibles.map((talla) => (
@@ -450,7 +430,6 @@ export default function ProductModal({
           ))}
         </div>
 
-        {/* Acciones */}
         <div className="mt-6 grid grid-cols-2 gap-2">
           {canEdit && isEditing ? (
             <button className="col-span-2 bg-green-600 text-white py-2 rounded" onClick={handleSave}>
@@ -471,7 +450,6 @@ export default function ProductModal({
           )}
         </div>
 
-        {/* WhatsApp */}
         <a
           href={`https://wa.me/50672327096?text=${encodeURIComponent(
             `👋 ¡Hola! Me interesa el producto:
@@ -490,7 +468,6 @@ export default function ProductModal({
           Enviar mensaje por WhatsApp
         </a>
 
-        {/* ✅ Cuadro de confirmación animado */}
         {showConfirmDelete && (
           <div className="absolute bottom-3 left-0 right-0 bg-black/60 flex items-center justify-center z-50 rounded-lg backdrop-blur-sm">
             <motion.div 

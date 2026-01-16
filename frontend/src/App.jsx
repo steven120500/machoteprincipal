@@ -23,7 +23,8 @@ import Medidas from "./components/Medidas";
 import Bienvenido from "./components/Bienvenido";
 import FilterBar from "./components/FilterBar";
 
-const API_BASE = "https://machoteprincipal.onrender.com";
+const API_BASE = "https://machoteprincipal.onrender.com"; 
+
 const GOLD = "#9E8F91";
 
 function buildPages(page, pages) {
