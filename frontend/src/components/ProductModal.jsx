@@ -4,7 +4,7 @@ import { FaWhatsapp, FaTimes, FaChevronLeft, FaChevronRight } from 'react-icons/
 // 👇 1. Importamos motion y AnimatePresence (Necesario para el slide de fotos)
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE = 'https://fut-store.onrender.com';
+const API_BASE = 'https://machoteprincipal.onrender.com/';
 
 const TALLAS_ADULTO = ['S', 'M', 'L', 'XL', 'XXL', '3XL', '4XL'];
 const TALLAS_NINO   = ['16', '18', '20', '22', '24', '26', '28'];

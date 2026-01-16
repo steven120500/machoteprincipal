@@ -23,7 +23,7 @@ app.use(compression());                     // gzip/brotli
 
 // CORS con manejo de origenes
 const allowedOrigins = [
-  'https://fut-store-frontend.onrender.com',
+  'https://machote.onrender.com/',
   'http://localhost:5173'
 ];
 

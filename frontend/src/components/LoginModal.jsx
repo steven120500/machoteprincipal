@@ -34,7 +34,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
 
     try {
       const res = await fetch(
-        `https://fut-store.onrender.com/api/auth/${endpoint}`,
+        `https://machoteprincipal.onrender.com//api/auth/${endpoint}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
