@@ -9,7 +9,10 @@ const GOLD = '#9E8F91';
 export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
+  
+  // Estado para saber si estamos en modo Registro o Login
+  const [isRegister, setIsRegister] = useState(false); 
+  
   const [showPassword, setShowPassword] = useState(false);
   const cardRef = useRef(null);
 
@@ -30,11 +33,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       return;
     }
 
+    // Decide a qué endpoint llamar según la pestaña activa
     const endpoint = isRegister ? 'register' : 'login';
 
     try {
+      // ⚠️ CORRECCIÓN IMPORTANTE: Quité la doble barra '//' que tenías antes de 'api'
       const res = await fetch(
-        `https://machoteprincipal.onrender.com//api/auth/${endpoint}`,
+        `https://machoteprincipal.onrender.com/api/auth/${endpoint}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -43,18 +48,29 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
       );
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al autenticar');
+      
+      // Si falla, lanzamos error
+      if (!res.ok) throw new Error(data.message || data.error || 'Error en la solicitud');
 
-      const userData = {
-        username: data.username,
-        roles: data.roles,
-        isSuperUser: data.isSuperUser,
-      };
+      if (isRegister) {
+        // Si es registro, avisamos y cambiamos a la pestaña de login
+        toast.success('¡Usuario registrado! Ahora inicia sesión.');
+        setIsRegister(false); // Cambia automáticamente a la pestaña de login
+      } else {
+        // Si es login exitoso
+        const userData = {
+          username: data.username,
+          roles: data.roles,
+          isSuperUser: data.isSuperUser,
+        };
 
-      localStorage.setItem('user', JSON.stringify(userData));
-      onLoginSuccess?.(userData);
-      onClose?.();
+        localStorage.setItem('user', JSON.stringify(userData));
+        onLoginSuccess?.(userData);
+        onClose?.();
+        toast.success(`Bienvenido, ${data.username}`);
+      }
     } catch (err) {
+      console.error(err);
       toast.error(err.message || 'Error desconocido');
     }
   };
@@ -63,7 +79,6 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm px-4"
       onMouseDown={(e) => {
-        // cerrar al dar click fuera de la tarjeta
         if (cardRef.current && !cardRef.current.contains(e.target)) onClose?.();
       }}
     >
@@ -71,38 +86,54 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
         ref={cardRef}
         className="relative w-full max-w-sm rounded-xl bg-white shadow-2xl"
       >
-        {/* Cerrar */}
+        {/* Botón Cerrar (X) */}
         <button
           onClick={onClose}
-          className="absolute right-3 fondo-plateado top-3 p-1 rounded-md hover:bg-black/5"
+          className="absolute right-3 top-3 p-1 rounded-md hover:bg-black/5 text-gray-500"
           aria-label="Cerrar"
           title="Cerrar"
         >
           <FiX size={22} />
         </button>
 
-        {/* Header con tabs */}
-        <div className="px-6 pt-6 pb-4">
-          <div className="flex items-center justify-center gap-2 text-sm font-semibold">
+        {/* Header con tabs (Pestañas) */}
+        <div className="px-6 pt-8 pb-4">
+          <div className="flex items-center justify-center gap-4 text-sm font-semibold">
+            
+            {/* Pestaña: Iniciar Sesión */}
             <button
               type="button"
               onClick={() => setIsRegister(false)}
-              className={`px-3 py-1 fondo-plateado  transition ${
+              className={`px-4 py-2 rounded-md transition ${
                 !isRegister
-                  ? 'text-black'
-                  : 'text-gray-400 hover:text-gray-700'
+                  ? 'text-black shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
               }`}
               style={!isRegister ? { backgroundColor: GOLD } : {}}
             >
               Iniciar Sesión
             </button>
             
+            {/* Pestaña: Registrarse (NUEVO) */}
+            <button
+              type="button"
+              onClick={() => setIsRegister(true)}
+              className={`px-4 py-2 rounded-md transition ${
+                isRegister
+                  ? 'text-black shadow-sm'
+                  : 'text-gray-400 hover:text-gray-600'
+              }`}
+              style={isRegister ? { backgroundColor: GOLD } : {}}
+            >
+              Registrarse
+            </button>
+
           </div>
         </div>
 
-        {/* Línea dorada */}
+        {/* Línea decorativa */}
         <div
-          className="h-[3px] w-full"
+          className="h-[2px] w-full opacity-50"
           style={{ backgroundColor: GOLD }}
         />
 
@@ -114,10 +145,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             </label>
             <input
               type="text"
-              placeholder="Usuario"
+              placeholder="Nombre de usuario"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-offset-0"
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-opacity-50"
               style={{ focusRingColor: GOLD }}
             />
           </div>
@@ -129,36 +160,35 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
             <div className="relative">
               <input
                 type={showPassword ? 'text' : 'password'}
-                placeholder="Contraseña"
+                placeholder="Tu contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-offset-0"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-opacity-50"
                 style={{ focusRingColor: GOLD }}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword((s) => !s)}
-                className="absolute right-2 top-1 -translate-y-1/2 text-gray-600 hover:text-gray-800"
-                aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
-                title={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute top-1/2 right-3 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                {showPassword ? <FiEyeOff size={14} /> : <FiEye size={14} />}
+                {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
               </button>
             </div>
           </div>
 
+          {/* Botón Principal (Cambia el texto según el modo) */}
           <button
             type="submit"
-            className="w-full fondo-plateado rounded-lg py-2 font-semibold text-black transition hover:opacity-90"
-           
+            className="w-full rounded-lg py-2.5 font-semibold text-black transition hover:opacity-90 shadow-md mt-2"
+            style={{ backgroundColor: GOLD }}
           >
-            {isRegister ? 'Registrarse' : 'Iniciar Sesión'}
+            {isRegister ? 'Crear Cuenta' : 'Ingresar'}
           </button>
 
           <button
             type="button"
             onClick={onClose}
-            className="w-full rounded-lg border border-gray-300 py-2 font-semibold text-gray-700 hover:bg-gray-50 transition"
+            className="w-full rounded-lg border border-gray-300 py-2 font-semibold text-gray-600 hover:bg-gray-50 transition"
           >
             Cancelar
           </button>
