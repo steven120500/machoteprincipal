@@ -1,25 +1,30 @@
 import nodemailer from 'nodemailer';
 
 const sendEmail = async (options) => {
-  // 1. Crear el transportador (el que envía el correo)
+  // 1. Configuramos el transportador de forma explícita
   const transporter = nodemailer.createTransport({
-    // Si usas Gmail, esta es la configuración:
-    service: 'Gmail',
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true para puerto 465, false para otros
     auth: {
-      user: process.env.EMAIL_USER, // Tu correo de Gmail
-      pass: process.env.EMAIL_PASS  // Tu "Contraseña de aplicación" de Google
+      user: process.env.EMAIL_USER,
+      pass: process.env.EMAIL_PASS,
     },
+    // Añadimos configuración de TLS para entornos de nube como Render
+    tls: {
+      rejectUnauthorized: false 
+    },
+    connectionTimeout: 10000, // 10 segundos de espera
   });
 
-  // 2. Definir las opciones del correo
   const mailOptions = {
-    from: 'FutStore <no-reply@futstore.com>',
+    from: `"FutStore" <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
-    html: options.message, // Usamos HTML para que el diseño se vea profesional
+    html: options.message,
   };
 
-  // 3. Enviar el correo
+  // 2. Enviamos el correo
   await transporter.sendMail(mailOptions);
 };
 
