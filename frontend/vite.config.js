@@ -49,7 +49,7 @@ export default defineConfig({
           // API de productos: red primero y caché de respaldo
           {
             urlPattern: ({ url }) =>
-              url.origin.includes('https://machoteprincipal.onrender.com/') &&
+              url.origin.includes('https://machoteprincipal.onrender.com') &&
               url.pathname.startsWith('/api/products'),
             handler: 'NetworkFirst',
             options: {
