@@ -1,29 +1,29 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+
+// Inicializa Resend utilizando la llave almacenada en las variables de entorno
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (options) => {
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false, // ⚠️ Importante: false para puerto 587
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    // ✅ Forzamos IPv4 para evitar que Render intente conectar por IPv6 y falle
-    family: 4, 
-    tls: {
-      rejectUnauthorized: false
+  try {
+    const { data, error } = await resend.emails.send({
+      // Resend permite enviar desde este dominio por defecto para pruebas
+      from: 'Tu Aplicación <onboarding@resend.dev>',
+      to: options.email,
+      subject: options.subject,
+      html: options.message,
+    });
+
+    if (error) {
+      console.error("Error detallado de Resend:", error);
+      throw new Error(error.message);
     }
-  });
 
-  const mailOptions = {
-    from: `"FutStore" <${process.env.EMAIL_USER}>`,
-    to: options.email,
-    subject: options.subject,
-    html: options.message,
-  };
-
-  await transporter.sendMail(mailOptions);
+    console.log("Correo enviado con éxito. ID de mensaje:", data.id);
+    return data;
+  } catch (err) {
+    console.error("Error crítico en el servicio de envío:", err);
+    throw err;
+  }
 };
 
 export default sendEmail;
