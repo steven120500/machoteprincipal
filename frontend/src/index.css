@@ -1,0 +1,516 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Scrollbar personalizada (compatible sin plugin) */
+.scroll-custom {
+  scrollbar-width: thin;
+  scrollbar-color: #a0aec0 transparent;
+}
+
+.scroll-custom::-webkit-scrollbar {
+  width: 8px;
+}
+
+.scroll-custom::-webkit-scrollbar-thumb {
+  background-color: #a0aec0; /* gray-400 */
+  border-radius: 9999px;
+}
+
+.scroll-custom::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Estilos base */
+:root {
+  font-family: 'Poppins', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+a {
+  font-weight: 500;
+  color: #ffffff;
+  text-decoration: inherit;
+}
+
+a:hover {
+  color: #ffffff;
+}
+
+h1 {
+  font-size: 3.2em;
+  line-height: 1.1;
+}
+
+.fondo-plateado {
+  background: linear-gradient(
+    145deg,
+    #f2f2f2 0%,
+    #d9d9d9 25%,
+    #bfbfbf 50%,
+    #e6e6e6 75%,
+    #ffffff 100%
+  );
+  box-shadow: 0 0 10px rgba(255, 255, 255, 0.5),
+              0 0 20px rgba(200, 200, 200, 0.3);
+  border: 1px solid #bfbfbf;
+  border-radius: 0px;
+  transition: all 0.3s ease;
+}
+
+.fondo-plateado:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.7),
+              0 0 40px rgba(180, 180, 180, 0.5);
+}
+
+
+/* ❤️ Rojo vino brillante metálico (elegante y llamativo) */
+.text-vino-brillante {
+  color: #b3003c; /* base vino oscuro */
+  font-weight: 800;
+  text-shadow:
+    0 0 6px rgba(179, 0, 60, 0.6),
+    0 0 12px rgba(255, 50, 90, 0.4),
+    0 0 20px rgba(120, 0, 30, 0.3);
+  background: linear-gradient(
+    90deg,
+    #8b0000 0%,
+    #ff3355 40%,
+    #ff6680 50%,
+    #ff3355 60%,
+    #8b0000 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% auto;
+  animation: brilloVino 5s linear infinite;
+}
+
+/* ✨ Animación de reflejo suave */
+@keyframes brilloVino {
+  0% {
+    background-position: -150px 0;
+  }
+  100% {
+    background-position: 150px 0;
+  }
+}
+
+/* ⚫🤍 Texto blanco con borde negro y leve brillo */
+.text-blanco-borde-negro {
+  color: #ffffff; /* letras blancas */
+  font-weight: 900;
+  text-shadow:
+    /* contorno negro grueso */
+    -1px -1px 0 #000,
+    1px -1px 0 #000,
+    -1px 1px 0 #000,
+    1px 1px 0 #000,
+    /* brillo suave */
+    0 0 8px rgba(255, 255, 255, 0.6),
+    0 0 14px rgba(255, 255, 255, 0.4);
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+}
+
+button:hover {
+  border-color: #9E8F91;
+}
+
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+
+/* Modo claro */
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+
+  a:hover {
+    color: #9E8F91;
+  }
+
+  button {
+    background-color: #f9f9f9;
+  }
+}
+
+@keyframes typing {
+  from { width: 0 }
+  to { width: 100% }
+}
+
+@keyframes blink {
+  0%, 100% { border-color: transparent }
+  50% { border-color: #9E8F91 }
+}
+
+.typing-effect {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 700;
+  font-size: 3rem;
+  color: #9E8F91;
+  white-space: nowrap;
+  overflow: hidden;
+  border-right: 3px solid #9E8F91;
+  width: 0;
+  animation:
+    typing 10s steps(8, end) forwards,
+    blink 0.75s step-end infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 1s ease-out forwards;
+}
+
+@keyframes fall {
+  to {
+    transform: translateY(100vh);
+  }
+}
+.animate-fall {
+  animation: fall linear infinite;
+}
+
+@keyframes gradient-slow {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-gradient-slow {
+  background-size: 200% 200%;
+  animation: gradient-slow 6s ease-in-out infinite;
+}
+
+/* ✨ Efecto máquina de escribir */
+@keyframes cursor-blink {
+  0%, 50%, 100% {
+    opacity: 1;
+  }
+  25%, 75% {
+    opacity: 0;
+  }
+}
+
+.animate-cursor {
+  animation: cursor-blink 1s step-end infinite;
+}
+
+/* ===========================================================
+   💚 BOTÓN LUMINOSO VERDE — con brillo móvil animado
+   =========================================================== */
+   .boton-luminoso-verde {
+    position: relative;
+    display: inline-block;
+    color: #fff;
+    background-color: #16a34a;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 700;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 0 20px rgba(22, 163, 74, 0.5), 0 0 40px rgba(22, 163, 74, 0.3);
+  }
+  
+  .boton-luminoso-verde::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.6) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    animation: brilloVerdeMovimiento 3s infinite;
+  }
+  
+  @keyframes brilloVerdeMovimiento {
+    0% {
+      left: -75%;
+    }
+    50% {
+      left: 125%;
+    }
+    100% {
+      left: 125%;
+    }
+  }
+  
+  .boton-luminoso-verde:hover {
+    box-shadow: 0 0 25px rgba(80, 255, 150, 0.8), 0 0 50px rgba(80, 255, 150, 0.4);
+    transform: scale(1.05);
+  }
+  
+  
+  /* ===========================================================
+     ❤️ BOTÓN LUMINOSO ROJO — con brillo móvil animado
+     =========================================================== */
+  .boton-luminoso-rojo {
+    position: relative;
+    display: inline-block;
+    color: #fff;
+    background-color: #dc2626;
+    border: none;
+    border-radius: 0.5rem;
+    font-weight: 700;
+    overflow: hidden;
+    transition: all 0.3s ease-in-out;
+    box-shadow: 0 0 20px rgba(255, 50, 50, 0.5), 0 0 40px rgba(255, 50, 50, 0.3);
+  }
+  
+  .boton-luminoso-rojo::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -75%;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(
+      120deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.7) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: skewX(-25deg);
+    animation: brilloRojoMovimiento 3s infinite;
+  }
+  
+  @keyframes brilloRojoMovimiento {
+    0% {
+      left: -75%;
+    }
+    50% {
+      left: 125%;
+    }
+    100% {
+      left: 125%;
+    }
+  }
+  
+  .boton-luminoso-rojo:hover {
+    box-shadow: 0 0 25px rgba(255, 100, 100, 0.8), 0 0 50px rgba(255, 100, 100, 0.4);
+    transform: scale(1.05);
+  }
+  
+  /* ❤️ Etiqueta de Oferta con efecto luminoso en movimiento */
+.etiqueta-oferta-luminosa {
+  position: relative;
+  display: inline-block;
+  background-color: #dc2626; /* rojo base */
+  color: #fff;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 0.5rem;
+  letter-spacing: 1px;
+  overflow: hidden;
+  box-shadow: 0 0 15px rgba(255, 50, 50, 0.6),
+              0 0 30px rgba(255, 50, 50, 0.3);
+  transition: all 0.3s ease-in-out;
+}
+
+/* ✨ Brillo animado que cruza la etiqueta */
+/* ✨ Efecto luminoso rojo animado para etiqueta de oferta */
+.etiqueta-oferta-luminosa {
+  background: linear-gradient(90deg, #b30000, #ff3333, #ff6666, #b30000);
+  background-size: 300% 300%;
+  animation: brilloOferta 3s ease-in-out infinite;
+  box-shadow: 0 0 12px rgba(255, 0, 0, 0.6), 0 0 20px rgba(255, 80, 80, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+@keyframes brilloOferta {
+  0% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
+  }
+  50% {
+    background-position: 100% 50%;
+    box-shadow: 0 0 20px rgba(255, 100, 100, 0.8);
+  }
+  100% {
+    background-position: 0% 50%;
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.4);
+  }
+}
+
+/* 1. Definimos la animación del brillo pasando */
+@keyframes brilloMetalico {
+  0% {
+    background-position: -200% center;
+  }
+  100% {
+    background-position: 200% center;
+  }
+}
+
+/* 2. Clase mejorada */
+.text-plateado {
+  /* Tipografía fuerte para que se note el metal */
+  font-weight: 900; 
+  letter-spacing: 1px;
+  
+  /* El Gradiente "Premium":
+     Usamos tu color base (#9E8F91) pero agregamos blanco puro 
+     y tonos más oscuros para dar volumen 3D */
+  background: linear-gradient(
+    110deg, 
+    #7a6a6c 10%,      /* Sombra metálica */
+    #9E8F91 30%,      /* Tu color base */
+    #ffffff 45%,      /* ✨ Brillo intenso (Punto de luz) */
+    #ffffff 55%,      /* ✨ Brillo intenso mantenido */
+    #9E8F91 70%,      /* Tu color base */
+    #7a6a6c 90%       /* Sombra metálica */
+  );
+
+  /* Tamaño del fondo para permitir el movimiento */
+  background-size: 200% auto;
+  
+  /* Recortar el fondo a la forma de las letras */
+  -webkit-background-clip: text;
+  background-clip: text;
+  
+  /* Hacer las letras transparentes para ver el metal */
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  
+  /* Animación: 3 segundos, movimiento suave e infinito */
+  animation: brilloMetalico 3s linear infinite;
+
+  /* IMPORTANTE: Usamos filter en vez de text-shadow para textos con gradiente */
+  filter: drop-shadow(0px 2px 3px rgba(0, 0, 0, 0.5));
+}
+/* 🔁 Movimiento del brillo dentro de las letras */
+@keyframes brilloSoloTexto {
+  0% {
+    background-position: 200% center;
+  }
+  100% {
+    background-position: -200% center;
+  }
+}
+
+@keyframes shineMove {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 120%;
+  }
+  100% {
+    left: 120%;
+  }
+}
+@keyframes shineMove {
+  0% { left: -100%; }
+  40% { left: 120%; }
+  100% { left: 120%; }
+}
+
+/* 🔹 Sticker "NUEVO" tipo circular */
+.sticker-new {
+  position: absolute;
+  top: -10px;
+  left: -10px;
+  width: 68px;
+  height: 68px;
+  z-index: 10;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #000, #000 55%, #000 85%);
+  border: 1px solid rgba(255,255,255,0.6);
+  box-shadow:
+    0 8px 16px rgba(0,0,0,0.18),
+    inset 0 0 10px rgba(206, 201, 201, 0.65);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  opacity: 0.95;
+  backdrop-filter: blur(2px);
+}
+
+.sticker-new span {
+  font-weight: 800;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: #fff;
+  letter-spacing: 0.6px;
+  text-shadow: 0 1px 4px rgba(255,255,255,0.9);
+  transform: translateY(2px);
+}
+
+/* ✨ Brillo del sticker */
+.sticker-new::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -120%;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    120deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.85) 100%,
+    rgba(255,255,255,0) 100%
+  );
+  transform: skewX(-20deg);
+  animation: shineMove 5s infinite;
+}
+
+/* 📱 Tamaño más pequeño en móvil */
+@media (max-width: 640px) {
+  .sticker-new {
+    transform: scale(0.7);
+    top: -18px;
+    left: -18px;
+  }
+  .sticker-new span {
+    font-size: 9px;
+  }
+}
+
+
