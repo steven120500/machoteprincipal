@@ -21,9 +21,9 @@ app.set('trust proxy', 1);                  // útil en Render/Proxies
 /* -------- middlewares globales -------- */
 app.use(compression());                     // gzip/brotli
 
-// CORS con manejo de origenes
+// CORS con manejo de origenes CORREGIDO
 const allowedOrigins = [
-  'https://machote.onrender.com/',
+  'https://machote.onrender.com',  // <--- ¡CORREGIDO! (Sin la barra al final)
   'http://localhost:5173'
 ];
 
