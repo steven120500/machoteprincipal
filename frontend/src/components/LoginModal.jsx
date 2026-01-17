@@ -193,7 +193,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
                     : 'border-gray-300'
                   }`}
                 />
-                <button type="button" onClick={() => setShowPassword((s) => !s)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 bg-transparent flex items-center h-full">
+                <button type="button" onClick={() => setShowPassword((s) => !s)} className="absolute right-3 top-0 -translate-y-1/2 text-gray-400 bg-transparent flex items-center h-full">
                   {showPassword ? <FiEyeOff size={18} /> : <FiEye size={18} />}
                 </button>
               </div>
