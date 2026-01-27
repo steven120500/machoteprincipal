@@ -1,19 +1,73 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaLock } from 'react-icons/fa';
+import { FaArrowLeft, FaLock, FaMapMarkerAlt } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 export default function Checkout() {
   const { cart, cartTotal } = useCart();
   const navigate = useNavigate();
   
+  // Estados para Ubicación CR
+  const [provincias, setProvincias] = useState({});
+  const [cantones, setCantones] = useState({});
+  const [distritos, setDistritos] = useState({});
+  
+  const [selectedProvincia, setSelectedProvincia] = useState("");
+  const [selectedCanton, setSelectedCanton] = useState("");
+  const [selectedDistrito, setSelectedDistrito] = useState("");
+
+  const [loadingLocation, setLoadingLocation] = useState(false);
+
+  // Datos del formulario
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
-    direccion: '',
+    direccionExacta: '', // Ahora solo la seña exacta
     correo: ''
   });
+
+  // --- CARGAR PROVINCIAS AL INICIO ---
+  useEffect(() => {
+    fetch('https://ubicaciones.paginasweb.cr/provincias.json')
+      .then(res => res.json())
+      .then(data => setProvincias(data))
+      .catch(err => console.error(err));
+  }, []);
+
+  // --- CARGAR CANTONES CUANDO CAMBIA PROVINCIA ---
+  const handleProvinciaChange = (e) => {
+    const idProvincia = e.target.value;
+    setSelectedProvincia(idProvincia);
+    setSelectedCanton(""); // Resetear siguientes
+    setSelectedDistrito("");
+    setCantones({});
+    setDistritos({});
+
+    if (idProvincia) {
+      setLoadingLocation(true);
+      fetch(`https://ubicaciones.paginasweb.cr/provincia/${idProvincia}/cantones.json`)
+        .then(res => res.json())
+        .then(data => { setCantones(data); setLoadingLocation(false); })
+        .catch(err => console.error(err));
+    }
+  };
+
+  // --- CARGAR DISTRITOS CUANDO CAMBIA CANTON ---
+  const handleCantonChange = (e) => {
+    const idCanton = e.target.value;
+    setSelectedCanton(idCanton);
+    setSelectedDistrito("");
+    setDistritos({});
+
+    if (idCanton && selectedProvincia) {
+      setLoadingLocation(true);
+      fetch(`https://ubicaciones.paginasweb.cr/provincia/${selectedProvincia}/canton/${idCanton}/distritos.json`)
+        .then(res => res.json())
+        .then(data => { setDistritos(data); setLoadingLocation(false); })
+        .catch(err => console.error(err));
+    }
+  };
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -22,17 +76,27 @@ export default function Checkout() {
   const handlePayment = (e) => {
     e.preventDefault();
     
-    if (!formData.nombre || !formData.telefono || !formData.direccion) {
-      return toast.warning("Por favor llena todos los datos de envío.");
+    // Validaciones
+    if (!formData.nombre || !formData.telefono || !formData.direccionExacta) {
+      return toast.warning("Por favor llena todos los datos.");
+    }
+    if (!selectedProvincia || !selectedCanton || !selectedDistrito) {
+      return toast.warning("Selecciona Provincia, Cantón y Distrito.");
     }
 
-    // --- AQUÍ IRÁ LA LÓGICA DE TILOPAY ---
-    // Por ahora, simulamos el pedido por WhatsApp
-    
+    // Obtener nombres reales de los IDs seleccionados
+    const nombreProvincia = provincias[selectedProvincia];
+    const nombreCanton = cantones[selectedCanton];
+    const nombreDistrito = distritos[selectedDistrito];
+
+    // Construir dirección completa
+    const direccionCompleta = `${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}. ${formData.direccionExacta}`;
+
     let mensaje = `🆕 *NUEVO PEDIDO WEB*\n`;
     mensaje += `👤 Cliente: ${formData.nombre}\n`;
     mensaje += `📞 Tel: ${formData.telefono}\n`;
-    mensaje += `📍 Dir: ${formData.direccion}\n\n`;
+    mensaje += `📍 Ubicación: ${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}\n`;
+    mensaje += `🏠 Señas: ${formData.direccionExacta}\n\n`;
     mensaje += `*PEDIDO:*\n`;
     
     cart.forEach(item => {
@@ -66,6 +130,7 @@ export default function Checkout() {
           <h2 className="text-2xl font-black italic uppercase mb-6">Datos de Envío</h2>
           
           <form onSubmit={handlePayment} className="space-y-4">
+            {/* Datos Personales */}
             <div>
               <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Nombre Completo</label>
               <input type="text" name="nombre" onChange={handleChange} className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 ring-black outline-none transition" placeholder="Ej: Juan Pérez" required />
@@ -82,9 +147,50 @@ export default function Checkout() {
                 </div>
             </div>
 
+            {/* SELECCIÓN DE UBICACIÓN CR */}
+            <div className="pt-4 border-t mt-4">
+              <p className="font-bold text-sm mb-3 flex items-center gap-2"><FaMapMarkerAlt/> Ubicación</p>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+                {/* Provincia */}
+                <div>
+                   <label className="text-[10px] font-bold text-gray-400">PROVINCIA</label>
+                   <select className="w-full border p-2 rounded bg-white" value={selectedProvincia} onChange={handleProvinciaChange} required>
+                     <option value="">Seleccionar...</option>
+                     {Object.entries(provincias).map(([id, nombre]) => (
+                       <option key={id} value={id}>{nombre}</option>
+                     ))}
+                   </select>
+                </div>
+
+                {/* Cantón */}
+                <div>
+                   <label className="text-[10px] font-bold text-gray-400">CANTÓN</label>
+                   <select className="w-full border p-2 rounded bg-white" value={selectedCanton} onChange={handleCantonChange} disabled={!selectedProvincia} required>
+                     <option value="">Seleccionar...</option>
+                     {Object.entries(cantones).map(([id, nombre]) => (
+                       <option key={id} value={id}>{nombre}</option>
+                     ))}
+                   </select>
+                </div>
+
+                {/* Distrito */}
+                <div>
+                   <label className="text-[10px] font-bold text-gray-400">DISTRITO</label>
+                   <select className="w-full border p-2 rounded bg-white" value={selectedDistrito} onChange={(e) => setSelectedDistrito(e.target.value)} disabled={!selectedCanton} required>
+                     <option value="">Seleccionar...</option>
+                     {Object.entries(distritos).map(([id, nombre]) => (
+                       <option key={id} value={id}>{nombre}</option>
+                     ))}
+                   </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Dirección Exacta */}
             <div>
-              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dirección Exacta</label>
-              <textarea name="direccion" onChange={handleChange} rows="3" className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 ring-black outline-none transition" placeholder="Provincia, cantón, distrito y señas exactas..." required></textarea>
+              <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Dirección Exacta / Señas</label>
+              <textarea name="direccionExacta" onChange={handleChange} rows="2" className="w-full border p-3 rounded-lg bg-gray-50 focus:bg-white focus:ring-2 ring-black outline-none transition" placeholder="Frente a la plaza de fútbol, casa color blanca..." required></textarea>
             </div>
             
             <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98]">
@@ -96,7 +202,7 @@ export default function Checkout() {
           </form>
         </div>
 
-        {/* DERECHA: RESUMEN DE ORDEN */}
+        {/* DERECHA: RESUMEN DE ORDEN (Igual que antes) */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit sticky top-28">
           <h3 className="font-bold text-lg mb-4 border-b pb-2">Resumen del Pedido</h3>
           <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
