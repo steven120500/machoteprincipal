@@ -74,16 +74,94 @@ function sanitizeInv(obj) {
 
 /* ================= Rutas ================= */
 
-/** Crear producto */
+/** Health check (Lo muevo arriba para evitar conflictos con :id) */
+router.get('/health', async (_req, res) => {
+  try {
+    const count = await Product.countDocuments();
+    res.json({ ok: true, count });
+  } catch {
+    res.status(500).json({ ok: false });
+  }
+});
+
+/** 1. Listado paginado */
+router.get('/', async (req, res) => {
+  try {
+    console.log('📡 GET /api/products - Iniciando consulta...');
+    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
+    const q = (req.query.q || '').trim();
+    const type = (req.query.type || '').trim();
+    const sizes = (req.query.sizes || '').trim();
+    const mode = (req.query.mode || '').trim();
+
+    const find = {};
+    if (q) find.name = { $regex: q, $options: 'i' };
+
+    if (type === 'Ofertas') {
+      find.discountPrice = { $ne: null, $gt: 0 };
+    } else if (mode === 'disponibles') {
+      find.$and = [
+        { $or: [{ discountPrice: { $exists: false } }, { discountPrice: null }, { discountPrice: 0 }] },
+        { $expr: { $gt: [{ $sum: { $map: { input: { $objectToArray: '$stock' }, as: 's', in: '$$s.v' } } }, 0] } },
+      ];
+    } else if (type) {
+      find.type = type;
+    }
+
+    if (sizes) {
+      const sizesArray = sizes.split(',').map((s) => s.trim()).filter(Boolean);
+      if (sizesArray.length > 0) {
+        find.$or = sizesArray.map((size) => ({ [`stock.${size}`]: { $gt: 0 } }));
+      }
+    }
+
+    const projection = 'name price discountPrice type imageSrc images stock bodega createdAt isNew';
+
+    const [items, total] = await Promise.all([
+      Product.find(find).select(projection).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      Product.countDocuments(find),
+    ]);
+
+    res.set('Cache-Control', 'public, max-age=20');
+    res.json({
+      items: items || [],
+      total: total || 0,
+      page,
+      pages: limit > 0 ? Math.ceil(total / limit) : 0,
+      limit,
+    });
+  } catch (err) {
+    console.error('❌ CRITICAL ERROR GET /api/products:', err);
+    res.status(500).json({ error: 'Error al obtener los productos', details: err.message });
+  }
+});
+
+/** ✅ 2. OBTENER UN SOLO PRODUCTO POR ID (ESTA ERA LA QUE FALTABA) */
+router.get('/:id', async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    res.json(product);
+  } catch (err) {
+    console.error('GET /api/products/:id error:', err);
+    // Si el ID no tiene formato válido de MongoDB, devuelve 404 en lugar de 500
+    if (err.kind === 'ObjectId') {
+        return res.status(404).json({ error: 'Producto no encontrado' });
+    }
+    res.status(500).json({ error: 'Error al obtener el producto' });
+  }
+});
+
+/** 3. Crear producto */
 router.post('/', upload.any(), async (req, res) => {
   try {
     const files = (req.files || []).filter(
       (f) => f.fieldname === 'images' || f.fieldname === 'image'
     );
-    // Nota: Quitamos la restricción estricta de imágenes para pruebas, 
-    // pero si es obligatorio, descomenta la siguiente línea:
-    // if (!files.length) return res.status(400).json({ error: 'No se enviaron imágenes' });
-
+    
     const uploaded = await Promise.all(
       files.map((f) => uploadToCloudinary(f.buffer))
     );
@@ -93,7 +171,6 @@ router.post('/', upload.any(), async (req, res) => {
     }));
     const imageSrc = images[0]?.url || '';
 
-    // stock y bodega logic
     let stock = {};
     try {
       if (typeof req.body.stock === 'string') stock = JSON.parse(req.body.stock);
@@ -138,13 +215,12 @@ router.post('/', upload.any(), async (req, res) => {
   }
 });
 
-/** Actualizar producto */
+/** 4. Actualizar producto */
 router.put('/:id', async (req, res) => {
   try {
     const prev = await Product.findById(req.params.id).lean();
     if (!prev) return res.status(404).json({ error: 'Producto no encontrado' });
 
-    // Parsing logic...
     let incomingStock = req.body.stock;
     if (typeof incomingStock === 'string') { try { incomingStock = JSON.parse(incomingStock); } catch {} }
     let nextStock = prev.stock;
@@ -168,7 +244,6 @@ router.put('/:id', async (req, res) => {
       update.isNew = req.body.isNew === 'true' || req.body.isNew === true || req.body.isNew === 'on';
     }
 
-    // Imágenes logic...
     if (req.body.imageSrc !== undefined) update.imageSrc = req.body.imageSrc || '';
     if (req.body.imageSrc2 !== undefined) update.imageSrc2 = req.body.imageSrc2 || '';
     if (req.body.imageAlt !== undefined) update.imageAlt = req.body.imageAlt || '';
@@ -177,10 +252,9 @@ router.put('/:id', async (req, res) => {
     if (typeof incomingImages === 'string') { try { incomingImages = JSON.parse(incomingImages); } catch {} }
 
     if (Array.isArray(incomingImages)) {
-      // (Lógica de imágenes igual a la original...)
       const prevList = prev.images || [];
       const normalized = [];
-      for (const raw of incomingImages.slice(0, 2)) {
+      for (const raw of incomingImages.slice(0, 5)) { // Subido a 5 imágenes
         if (!raw) continue;
         if (typeof raw === 'string' && raw.startsWith('data:')) {
           const up = await cloudinary.uploader.upload(raw, { folder: 'products', resource_type: 'image' });
@@ -199,7 +273,6 @@ router.put('/:id', async (req, res) => {
 
     const updated = await Product.findByIdAndUpdate(req.params.id, { $set: update }, { new: true, runValidators: true });
     
-    // History...
     const changes = diffProduct(prev, updated.toObject());
     if (changes.length) {
       await History.create({
@@ -217,7 +290,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-/** Eliminar producto */
+/** 5. Eliminar producto */
 router.delete('/:id', async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
@@ -239,73 +312,6 @@ router.delete('/:id', async (req, res) => {
   } catch (err) {
     console.error('DELETE /api/products/:id error:', err);
     res.status(500).json({ error: 'Error al eliminar producto' });
-  }
-});
-
-/** Listado paginado (MEJORADO PARA DEBUGGING) */
-router.get('/', async (req, res) => {
-  try {
-    // Logs para ver en Render si llega la petición
-    console.log('📡 GET /api/products - Iniciando consulta...');
-
-    const page = Math.max(parseInt(req.query.page || '1', 10), 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit || '20', 10), 1), 100);
-    const q = (req.query.q || '').trim();
-    const type = (req.query.type || '').trim();
-    const sizes = (req.query.sizes || '').trim();
-    const mode = (req.query.mode || '').trim();
-
-    const find = {};
-    if (q) find.name = { $regex: q, $options: 'i' };
-
-    if (type === 'Ofertas') {
-      find.discountPrice = { $ne: null, $gt: 0 };
-    } else if (mode === 'disponibles') {
-      find.$and = [
-        { $or: [{ discountPrice: { $exists: false } }, { discountPrice: null }, { discountPrice: 0 }] },
-        { $expr: { $gt: [{ $sum: { $map: { input: { $objectToArray: '$stock' }, as: 's', in: '$$s.v' } } }, 0] } },
-      ];
-    } else if (type) {
-      find.type = type;
-    }
-
-    if (sizes) {
-      const sizesArray = sizes.split(',').map((s) => s.trim()).filter(Boolean);
-      if (sizesArray.length > 0) {
-        find.$or = sizesArray.map((size) => ({ [`stock.${size}`]: { $gt: 0 } }));
-      }
-    }
-
-    const projection = 'name price discountPrice type imageSrc images stock bodega createdAt isNew';
-
-    const [items, total] = await Promise.all([
-      Product.find(find).select(projection).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
-      Product.countDocuments(find),
-    ]);
-
-    console.log(`✅ Consulta exitosa. Productos encontrados: ${total}`);
-
-    res.set('Cache-Control', 'public, max-age=20');
-    res.json({
-      items: items || [], // Asegura que siempre sea array
-      total: total || 0,
-      page,
-      pages: limit > 0 ? Math.ceil(total / limit) : 0,
-      limit,
-    });
-  } catch (err) {
-    console.error('❌ CRITICAL ERROR GET /api/products:', err);
-    res.status(500).json({ error: 'Error al obtener los productos', details: err.message });
-  }
-});
-
-/** Health check */
-router.get('/health', async (_req, res) => {
-  try {
-    const count = await Product.countDocuments();
-    res.json({ ok: true, count });
-  } catch {
-    res.status(500).json({ ok: false });
   }
 });
 
