@@ -1,12 +1,11 @@
 import { Toaster } from "react-hot-toast";
 import React, { useEffect, useRef, useState } from "react";
 import { AnimatePresence } from "framer-motion";
-// 1. Importamos los componentes de navegación
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 
+// Componentes
 import Header from "./components/Header";
 import ProductCard from "./components/ProductCard";
-import ProductModal from "./components/ProductModal";
 import AddProductModal from "./components/AddProductModal";
 import LoginModal from "./components/LoginModal";
 import RegisterUserModal from "./components/RegisterUserModal";
@@ -24,8 +23,9 @@ import Medidas from "./components/Medidas";
 import Bienvenido from "./components/Bienvenido";
 import FilterBar from "./components/FilterBar";
 
-// 2. Importamos la nueva página de Reset Password
+// Páginas
 import ResetPassword from "./pages/ResetPassword";
+import ProductDetail from "./pages/ProductDetail"; // 👈 IMPORTANTE: Asegúrate de crear este archivo en 'pages'
 
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 const GOLD = "#9E8F91";
@@ -40,7 +40,9 @@ const getPid = (p) => String(p?._id ?? p?.id ?? "");
 export default function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  
+  // 🗑️ ELIMINADO: selectedProduct ya no se usa aquí porque ahora es una página aparte
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterSizes, setFilterSizes] = useState([]);
@@ -164,65 +166,10 @@ export default function App() {
     };
   }, []);
 
-  useEffect(() => {
-    const handleFiltrarOfertas = () => {
-      delete window.__verDisponiblesActivo;
-      setFilterType("Ofertas");
-      setPage(1);
-      fetchProducts({ page: 1, type: "Ofertas" });
-      setTimeout(() => {
-        if (pageTopRef.current) {
-          const y = pageTopRef.current.getBoundingClientRect().top + window.scrollY;
-          window.scrollTo({ top: y - 150, behavior: "smooth" });
-        }
-      }, 400);
-    };
-    window.addEventListener("filtrarOfertas", handleFiltrarOfertas);
-    return () => window.removeEventListener("filtrarOfertas", handleFiltrarOfertas);
-  }, []);
-
-  useEffect(() => {
-    const handleFiltrarDisponibles = async () => {
-      window.__verDisponiblesActivo = true;
-      setFilterType("");
-      setSearchTerm("");
-      setPage(1);
-      await fetchProducts({ page: 1, mode: "disponibles" });
-      setTimeout(() => {
-        if (pageTopRef.current) {
-          const y = pageTopRef.current.getBoundingClientRect().top + window.scrollY;
-          window.scrollTo({ top: y - 100, behavior: "smooth" });
-        }
-      }, 400);
-    };
-    window.addEventListener("filtrarDisponibles", handleFiltrarDisponibles);
-    return () => {
-      delete window.__verDisponiblesActivo;
-      window.removeEventListener("filtrarDisponibles", handleFiltrarDisponibles);
-    };
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const pid = params.get("product");
-    if (!pid) return;
-    const match = products.find((p) => String(p._id) === pid || String(p.id) === pid);
-    if (match) {
-      setSelectedProduct(match);
-      return;
-    }
-    fetch(`${API_BASE}/api/products/${pid}`)
-      .then((res) => (res.ok ? res.json() : null))
-      .then((data) => {
-        if (data && data._id) setSelectedProduct(data);
-      })
-      .catch(() => {});
-  }, [products]);
-
+  // Función para manejar actualizaciones desde el detalle del producto (si se edita)
   const handleProductUpdate = (updatedProduct, deletedId = null) => {
     if (deletedId) {
       setProducts((prev) => prev.filter((p) => getPid(p) !== String(deletedId)));
-      setSelectedProduct(null);
       toast.success("Producto eliminado correctamente");
       return;
     }
@@ -231,13 +178,11 @@ export default function App() {
         getPid(p) === getPid(updatedProduct) ? { ...p, ...updatedProduct } : p
       )
     );
-    toast.success("Producto actualizado correctamente");
+    // Nota: Como estamos en otra página, el toast aparecerá allí, pero esto mantiene el estado local actualizado
   };
 
-  const normalize = (str) =>
-    str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-
   const filteredProducts = products.filter((product) => {
+    const normalize = (str) => str?.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const name = normalize(product.name || "");
     const matchesSearch = name.includes(normalize(searchTerm || ""));
     const hasStock = Object.values(product.stock || {}).some((qty) => Number(qty) > 0);
@@ -261,69 +206,40 @@ export default function App() {
   return (
     <Router>
       <Routes>
-        {/* 🛡️ RUTA DE RECUPERACIÓN: Se muestra en una página limpia */}
+        {/* 1. RECUPERACIÓN DE CONTRASEÑA */}
         <Route path="/reset-password/:token" element={<ResetPassword />} />
 
-        {/* 🏠 RUTA PRINCIPAL: Contiene toda tu tienda */}
+        {/* 2. NUEVA PÁGINA DE PRODUCTO (Sustituye al Modal) */}
+        {/* Pasamos 'onUpdate' para que si el Admin edita, se refresque la lista al volver */}
+        <Route 
+          path="/product/:id" 
+          element={<ProductDetail user={user} onUpdate={handleProductUpdate} />} 
+        />
+
+        {/* 3. HOME / CATÁLOGO PRINCIPAL */}
         <Route path="/" element={
           <>
-            {showRegisterUserModal && (
-              <RegisterUserModal onClose={() => setShowRegisterUserModal(false)} />
-            )}
-
-            {showUserListModal && (
-              <UserListModal
-                open={showUserListModal}
-                onClose={() => setShowUserListModal(false)}
-              />
-            )}
-
-            {showHistoryModal && (
-              <HistoryModal
-                open={showHistoryModal}
-                onClose={() => setShowHistoryModal(false)}
-                isSuperUser={user?.isSuperUser === true}
-                roles={user?.roles || []}
-              />
-            )}
-
-            {showMedidas && (
-              <Medidas
-                open={showMedidas}
-                onClose={() => setShowMedidas(false)}
-                currentType={filterType || "Todos"}
-              />
-            )}
-
+            {showRegisterUserModal && <RegisterUserModal onClose={() => setShowRegisterUserModal(false)} />}
+            {showUserListModal && <UserListModal open={showUserListModal} onClose={() => setShowUserListModal(false)} />}
+            {showHistoryModal && <HistoryModal open={showHistoryModal} onClose={() => setShowHistoryModal(false)} isSuperUser={user?.isSuperUser === true} roles={user?.roles || []} />}
+            {showMedidas && <Medidas open={showMedidas} onClose={() => setShowMedidas(false)} currentType={filterType || "Todos"} />}
             {loading && <LoadingOverlay message="Cargando productos..." />}
 
             <div className="fixed top-0 left-0 w-full z-50">
               <TopBanner />
-              {!selectedProduct &&
-                !showAddModal &&
-                !showLogin &&
-                !showRegisterUserModal &&
-                !showUserListModal &&
-                !showHistoryModal &&
-                !showMedidas && (
-                  <Header
-                    onLoginClick={() => setShowLogin(true)}
-                    onLogout={handleLogout}
-                    onLogoClick={() => {
-                      setFilterType("");
-                      setSearchTerm("");
-                      setPage(1);
-                    }}
-                    onMedidasClick={() => setShowMedidas(true)}
-                    user={user}
-                    isSuperUser={isSuperUser}
-                    canSeeHistory={canSeeHistory}
-                    setShowRegisterUserModal={setShowRegisterUserModal}
-                    setShowUserListModal={setShowUserListModal}
-                    setShowHistoryModal={setShowHistoryModal}
-                    setFilterType={setFilterType}
-                  />
-                )}
+              <Header
+                onLoginClick={() => setShowLogin(true)}
+                onLogout={handleLogout}
+                onLogoClick={() => { setFilterType(""); setSearchTerm(""); setPage(1); }}
+                onMedidasClick={() => setShowMedidas(true)}
+                user={user}
+                isSuperUser={isSuperUser}
+                canSeeHistory={canSeeHistory}
+                setShowRegisterUserModal={setShowRegisterUserModal}
+                setShowUserListModal={setShowUserListModal}
+                setShowHistoryModal={setShowHistoryModal}
+                setFilterType={setFilterType}
+              />
             </div>
 
             <div className="h-[120px]" />
@@ -349,35 +265,23 @@ export default function App() {
             )}
 
             <div className="relative w-full">
-              <div
-                ref={pageTopRef}
-                className="relative z-10 px-4 grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:gap-x-8"
-              >
+              <div ref={pageTopRef} className="relative z-10 px-4 grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:gap-x-8">
                 {filteredProducts.map((product) => (
                   <ProductCard
                     canEdit={canEdit}
                     key={getPid(product)}
                     product={product}
-                    onClick={() => setSelectedProduct(product)}
                     user={user}
+                    // 👇 CAMBIO IMPORTANTE: Navegación directa a la nueva página
+                    // Usamos window.location.href como solución rápida ya que estamos en el root del Router
+                    // Lo ideal sería que ProductCard usara <Link> internamente.
+                    onClick={() => window.location.href = `/product/${getPid(product)}`}
                   />
                 ))}
               </div>
             </div>
 
-            <AnimatePresence>
-              {selectedProduct && (
-                <ProductModal
-                  key={`${getPid(selectedProduct)}-${selectedProduct.updatedAt || ""}`}
-                  product={selectedProduct}
-                  onClose={() => setSelectedProduct(null)}
-                  onUpdate={handleProductUpdate}
-                  canEdit={canEdit}
-                  canDelete={canDelete}
-                  user={user}
-                />
-              )}
-            </AnimatePresence>
+            {/* 🗑️ ELIMINADO: <ProductModal /> ya no se renderiza aquí */}
 
             {showAddModal && (
               <AddProductModal
@@ -402,53 +306,27 @@ export default function App() {
                   setShowLogin(false);
                   toast.success("Bienvenido");
                 }}
-                onRegisterClick={() =>
-                  setTimeout(() => setShowRegisterUserModal(true), 100)
-                }
+                onRegisterClick={() => setTimeout(() => setShowRegisterUserModal(true), 100)}
               />
             )}
 
             {pages > 1 && (
               <div className="mt-8 flex flex-col items-center gap-3">
                 <nav className="flex items-center justify-center gap-2">
-                  <button
-                    onClick={() => setPage((p) => Math.max(1, p - 1))}
-                    disabled={page === 1}
-                    className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50"
-                  >
+                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50">
                     <FaChevronLeft />
                   </button>
-
-                  {(() => {
-                    const nums = buildPages(page, pages);
-                    return nums.map((n, i) => {
-                      const prev = nums[i - 1];
-                      const showDots = i > 0 && n - prev > 1;
-                      return (
-                        <span key={n} className="flex">
-                          {showDots && <span className="px-2">…</span>}
-                          <button
-                            onClick={() => setPage(n)}
-                            className={`px-2 text-sm py-0.5 rounded border ${
-                              n === page ? "text-black fondo-plateado" : "hover:bg-green-700"
-                            }`}
-                            style={{
-                              backgroundColor: n === page ? GOLD : "transparent",
-                              borderColor: n === page ? GOLD : "#ccc",
-                            }}
-                          >
-                            {n}
-                          </button>
-                        </span>
-                      );
-                    });
-                  })()}
-
-                  <button
-                    onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                    disabled={page === pages}
-                    className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50"
-                  >
+                  {buildPages(page, pages).map((n) => (
+                    <button
+                      key={n}
+                      onClick={() => setPage(n)}
+                      className={`px-2 text-sm py-0.5 rounded border ${n === page ? "text-black fondo-plateado" : "hover:bg-green-700"}`}
+                      style={{ backgroundColor: n === page ? GOLD : "transparent", borderColor: n === page ? GOLD : "#ccc" }}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                  <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50">
                     <FaChevronRight />
                   </button>
                 </nav>
