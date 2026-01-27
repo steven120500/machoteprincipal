@@ -178,7 +178,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }) {
               <div className="flex justify-between items-center mb-1 ml-1">
                 <label className="block text-[10px] font-bold text-gray-500 uppercase">Contraseña</label>
                 {mode === 'login' && (
-                  <button type="button" onClick={() => setMode('forgot')} className="text-[10px] text-gray-400 hover:text-black hover:underline bg-transparent">
+                  <button type="button" onClick={() => setMode('forgot')} className="text-[10px] text-blue hover:text-black hover:underline bg-transparent">
                     ¿Olvidaste tu contraseña?
                   </button>
                 )}
