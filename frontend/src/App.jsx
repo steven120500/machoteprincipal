@@ -1,7 +1,11 @@
 import { Toaster } from "react-hot-toast";
 import React, { useEffect, useRef, useState } from "react";
-import { AnimatePresence } from "framer-motion";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
+import { AnimatePresence } from "framer-motion";
+
+// --- IMPORTACIONES DEL CARRITO ---
+import { CartProvider } from "./context/CartContext";
+import CartDrawer from "./components/CartDrawer";
 
 // Componentes
 import Header from "./components/Header";
@@ -11,24 +15,25 @@ import LoginModal from "./components/LoginModal";
 import RegisterUserModal from "./components/RegisterUserModal";
 import Footer from "./components/Footer";
 import LoadingOverlay from "./components/LoadingOverlay";
-import tallaPorTipo from "./utils/tallaPorTipo";
-import { FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
-import { ToastContainer, toast } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import "./index.css";
 import TopBanner from "./components/TopBanner";
 import UserListModal from "./components/UserListModal";
 import HistoryModal from "./components/HistoryModal";
 import Medidas from "./components/Medidas";
 import Bienvenido from "./components/Bienvenido";
 import FilterBar from "./components/FilterBar";
+import tallaPorTipo from "./utils/tallaPorTipo";
+import { FaPlus, FaChevronLeft, FaChevronRight } from "react-icons/fa";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+import "./index.css";
 
 // Páginas
 import ResetPassword from "./pages/ResetPassword";
-import ProductDetail from "./pages/ProductDetail"; // 👈 IMPORTANTE: Asegúrate de crear este archivo en 'pages'
+import ProductDetail from "./pages/ProductDetail.jsx";
+import Checkout from "./pages/Checkout.jsx"; // 👈 IMPORTANTE
 
 const API_BASE = "https://machoteprincipal.onrender.com"; 
-const GOLD = "#9E8F91";
+const GOLD = "#9E8F91"
 
 function buildPages(page, pages) {
   const out = new Set([1, pages, page, page - 1, page - 2, page + 1, page + 2]);
@@ -40,9 +45,6 @@ const getPid = (p) => String(p?._id ?? p?.id ?? "");
 export default function App() {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  // 🗑️ ELIMINADO: selectedProduct ya no se usa aquí porque ahora es una página aparte
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState("");
   const [filterSizes, setFilterSizes] = useState([]);
@@ -65,9 +67,7 @@ export default function App() {
     try {
       const storedUser = localStorage.getItem("user");
       return storedUser ? JSON.parse(storedUser) : null;
-    } catch {
-      return null;
-    }
+    } catch { return null; }
   });
 
   const isSuperUser = user?.isSuperUser || false;
@@ -130,55 +130,18 @@ export default function App() {
   }, [page, searchTerm, filterType, filterSizes]);
 
   useEffect(() => {
-    if ('scrollRestoration' in window.history) {
-      window.history.scrollRestoration = 'manual';
-    }
+    if ('scrollRestoration' in window.history) window.history.scrollRestoration = 'manual';
     window.scrollTo(0, 0);
   }, []);
 
-  useEffect(() => {
-    const handleCarruselFilter = (categoria) => {
-      delete window.__verDisponiblesActivo;
-      setFilterType(categoria);
-      setSearchTerm("");
-      setPage(1);
-      fetchProducts({ page: 1, type: categoria });
-      setTimeout(() => {
-        if (pageTopRef.current) {
-          const y = pageTopRef.current.getBoundingClientRect().top + window.scrollY;
-          window.scrollTo({ top: y - 323, behavior: "smooth" });
-        }
-      }, 300);
-    };
-    const onRetros = () => handleCarruselFilter("Retro");
-    const onPlayer = () => handleCarruselFilter("Player");
-    const onFan = () => handleCarruselFilter("Fan");
-    const onNacional = () => handleCarruselFilter("Nacional");
-    window.addEventListener("filtrarRetros", onRetros);
-    window.addEventListener("filtrarPlayer", onPlayer);
-    window.addEventListener("filtrarFan", onFan);
-    window.addEventListener("filtrarNacional", onNacional);
-    return () => {
-      window.removeEventListener("filtrarRetros", onRetros);
-      window.removeEventListener("filtrarPlayer", onPlayer);
-      window.removeEventListener("filtrarFan", onFan);
-      window.removeEventListener("filtrarNacional", onNacional);
-    };
-  }, []);
-
-  // Función para manejar actualizaciones desde el detalle del producto (si se edita)
   const handleProductUpdate = (updatedProduct, deletedId = null) => {
     if (deletedId) {
       setProducts((prev) => prev.filter((p) => getPid(p) !== String(deletedId)));
-      toast.success("Producto eliminado correctamente");
       return;
     }
     setProducts((prev) =>
-      prev.map((p) =>
-        getPid(p) === getPid(updatedProduct) ? { ...p, ...updatedProduct } : p
-      )
+      prev.map((p) => getPid(p) === getPid(updatedProduct) ? { ...p, ...updatedProduct } : p)
     );
-    // Nota: Como estamos en otra página, el toast aparecerá allí, pero esto mantiene el estado local actualizado
   };
 
   const filteredProducts = products.filter((product) => {
@@ -204,141 +167,84 @@ export default function App() {
   });
 
   return (
-    <Router>
-      <Routes>
-        {/* 1. RECUPERACIÓN DE CONTRASEÑA */}
-        <Route path="/reset-password/:token" element={<ResetPassword />} />
+    <CartProvider>
+      <Router>
+        <CartDrawer />
+        <Routes>
+          <Route path="/reset-password/:token" element={<ResetPassword />} />
+          <Route path="/product/:id" element={<ProductDetail user={user} onUpdate={handleProductUpdate} />} />
+          <Route path="/checkout" element={<Checkout />} /> {/* 👈 NUEVA RUTA */}
+          
+          <Route path="/" element={
+            <>
+              {showRegisterUserModal && <RegisterUserModal onClose={() => setShowRegisterUserModal(false)} />}
+              {showUserListModal && <UserListModal open={showUserListModal} onClose={() => setShowUserListModal(false)} />}
+              {showHistoryModal && <HistoryModal open={showHistoryModal} onClose={() => setShowHistoryModal(false)} isSuperUser={user?.isSuperUser === true} roles={user?.roles || []} />}
+              {showMedidas && <Medidas open={showMedidas} onClose={() => setShowMedidas(false)} currentType={filterType || "Todos"} />}
+              {loading && <LoadingOverlay message="Cargando productos..." />}
 
-        {/* 2. NUEVA PÁGINA DE PRODUCTO (Sustituye al Modal) */}
-        {/* Pasamos 'onUpdate' para que si el Admin edita, se refresque la lista al volver */}
-        <Route 
-          path="/product/:id" 
-          element={<ProductDetail user={user} onUpdate={handleProductUpdate} />} 
-        />
-
-        {/* 3. HOME / CATÁLOGO PRINCIPAL */}
-        <Route path="/" element={
-          <>
-            {showRegisterUserModal && <RegisterUserModal onClose={() => setShowRegisterUserModal(false)} />}
-            {showUserListModal && <UserListModal open={showUserListModal} onClose={() => setShowUserListModal(false)} />}
-            {showHistoryModal && <HistoryModal open={showHistoryModal} onClose={() => setShowHistoryModal(false)} isSuperUser={user?.isSuperUser === true} roles={user?.roles || []} />}
-            {showMedidas && <Medidas open={showMedidas} onClose={() => setShowMedidas(false)} currentType={filterType || "Todos"} />}
-            {loading && <LoadingOverlay message="Cargando productos..." />}
-
-            <div className="fixed top-0 left-0 w-full z-50">
-              <TopBanner />
-              <Header
-                onLoginClick={() => setShowLogin(true)}
-                onLogout={handleLogout}
-                onLogoClick={() => { setFilterType(""); setSearchTerm(""); setPage(1); }}
-                onMedidasClick={() => setShowMedidas(true)}
-                user={user}
-                isSuperUser={isSuperUser}
-                canSeeHistory={canSeeHistory}
-                setShowRegisterUserModal={setShowRegisterUserModal}
-                setShowUserListModal={setShowUserListModal}
-                setShowHistoryModal={setShowHistoryModal}
-                setFilterType={setFilterType}
-              />
-            </div>
-
-            <div className="h-[120px]" />
-            <Bienvenido />
-
-            <FilterBar
-              searchTerm={searchTerm}
-              setSearchTerm={setSearchTerm}
-              filterType={filterType}
-              setFilterType={setFilterType}
-              filterSizes={filterSizes}
-              setFilterSizes={setFilterSizes}
-            />
-
-            {canAdd && (
-              <button
-                className="fixed bottom-6 fondo-plateado right-6 text-black p-4 rounded-full shadow-lg transition z-50"
-                onClick={() => setShowAddModal(true)}
-                title="Añadir producto"
-              >
-                <FaPlus />
-              </button>
-            )}
-
-            <div className="relative w-full">
-              <div ref={pageTopRef} className="relative z-10 px-4 grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:gap-x-8">
-                {filteredProducts.map((product) => (
-                  <ProductCard
-                    canEdit={canEdit}
-                    key={getPid(product)}
-                    product={product}
-                    user={user}
-                    // 👇 CAMBIO IMPORTANTE: Navegación directa a la nueva página
-                    // Usamos window.location.href como solución rápida ya que estamos en el root del Router
-                    // Lo ideal sería que ProductCard usara <Link> internamente.
-                    onClick={() => window.location.href = `/product/${getPid(product)}`}
-                  />
-                ))}
+              <div className="fixed top-0 left-0 w-full z-50">
+                <TopBanner />
+                <Header
+                  onLoginClick={() => setShowLogin(true)}
+                  onLogout={handleLogout}
+                  onLogoClick={() => { setFilterType(""); setSearchTerm(""); setPage(1); }}
+                  onMedidasClick={() => setShowMedidas(true)}
+                  user={user}
+                  isSuperUser={isSuperUser}
+                  canSeeHistory={canSeeHistory}
+                  setShowRegisterUserModal={setShowRegisterUserModal}
+                  setShowUserListModal={setShowUserListModal}
+                  setShowHistoryModal={setShowHistoryModal}
+                  setFilterType={setFilterType}
+                />
               </div>
-            </div>
 
-            {/* 🗑️ ELIMINADO: <ProductModal /> ya no se renderiza aquí */}
+              <div className="h-[120px]" />
+              <Bienvenido />
+              <FilterBar searchTerm={searchTerm} setSearchTerm={setSearchTerm} filterType={filterType} setFilterType={setFilterType} filterSizes={filterSizes} setFilterSizes={setFilterSizes} />
 
-            {showAddModal && (
-              <AddProductModal
-                user={user}
-                tallaPorTipo={tallaPorTipo}
-                onAdd={(newProduct) => {
-                  setProducts((prev) => [newProduct, ...prev]);
-                  setShowAddModal(false);
-                  toast.success("Producto agregado correctamente");
-                }}
-                onCancel={() => setShowAddModal(false)}
-              />
-            )}
+              {canAdd && (
+                <button className="fixed bottom-6 right-6 fondo-plateado text-black p-4 rounded-full shadow-lg transition z-50" onClick={() => setShowAddModal(true)}>
+                  <FaPlus />
+                </button>
+              )}
 
-            {showLogin && (
-              <LoginModal
-                isOpen={showLogin}
-                onClose={() => setShowLogin(false)}
-                onLoginSuccess={(userData) => {
-                  setUser(userData);
-                  localStorage.setItem("user", JSON.stringify(userData));
-                  setShowLogin(false);
-                  toast.success("Bienvenido");
-                }}
-                onRegisterClick={() => setTimeout(() => setShowRegisterUserModal(true), 100)}
-              />
-            )}
-
-            {pages > 1 && (
-              <div className="mt-8 flex flex-col items-center gap-3">
-                <nav className="flex items-center justify-center gap-2">
-                  <button onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50">
-                    <FaChevronLeft />
-                  </button>
-                  {buildPages(page, pages).map((n) => (
-                    <button
-                      key={n}
-                      onClick={() => setPage(n)}
-                      className={`px-2 text-sm py-0.5 rounded border ${n === page ? "text-black fondo-plateado" : "hover:bg-green-700"}`}
-                      style={{ backgroundColor: n === page ? GOLD : "transparent", borderColor: n === page ? GOLD : "#ccc" }}
-                    >
-                      {n}
-                    </button>
+              <div className="relative w-full">
+                <div ref={pageTopRef} className="relative z-10 px-4 grid grid-cols-2 gap-y-6 gap-x-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:gap-x-8">
+                  {filteredProducts.map((product) => (
+                    <ProductCard
+                      canEdit={canEdit}
+                      key={getPid(product)}
+                      product={product}
+                      user={user}
+                      onClick={() => window.location.href = `/product/${getPid(product)}`}
+                    />
                   ))}
-                  <button onClick={() => setPage((p) => Math.min(pages, p + 1))} disabled={page === pages} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50">
-                    <FaChevronRight />
-                  </button>
-                </nav>
+                </div>
               </div>
-            )}
 
-            <Footer />
-            <ToastContainer />
-            <Toaster position="top-center" reverseOrder={false} />
-          </>
-        } />
-      </Routes>
-    </Router>
+              {showAddModal && <AddProductModal user={user} tallaPorTipo={tallaPorTipo} onAdd={(newProduct) => { setProducts(prev => [newProduct, ...prev]); setShowAddModal(false); toast.success("Producto agregado"); }} onCancel={() => setShowAddModal(false)} />}
+              
+              {showLogin && <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLoginSuccess={(userData) => { setUser(userData); localStorage.setItem("user", JSON.stringify(userData)); setShowLogin(false); toast.success("Bienvenido"); }} onRegisterClick={() => setTimeout(() => setShowRegisterUserModal(true), 100)} />}
+
+              {pages > 1 && (
+                <div className="mt-8 flex flex-col items-center gap-3">
+                  <nav className="flex items-center justify-center gap-2">
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50"><FaChevronLeft /></button>
+                    {buildPages(page, pages).map(n => (
+                      <button key={n} onClick={() => setPage(n)} className={`px-2 text-sm py-0.5 rounded border ${n === page ? "text-black fondo-plateado" : "hover:bg-green-700"}`} style={{ backgroundColor: n === page ? GOLD : "transparent", borderColor: n === page ? GOLD : "#ccc" }}>{n}</button>
+                    ))}
+                    <button onClick={() => setPage(p => Math.min(pages, p + 1))} disabled={page === pages} className="px-2 py-1 text-sm text-black fondo-plateado rounded border disabled:opacity-50"><FaChevronRight /></button>
+                  </nav>
+                </div>
+              )}
+              <Footer />
+            </>
+          } />
+        </Routes>
+      </Router>
+      <ToastContainer />
+    </CartProvider>
   );
 }
