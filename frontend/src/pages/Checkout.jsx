@@ -87,7 +87,7 @@ export default function Checkout() {
         id: 'correos',
         nombre: 'Correos de Costa Rica',
         precio: 3500,
-        detalle: esZonaGam ? 'Entrega día siguiente (GAM)' : 'Entrega 1-2 días hábiles'
+        detalle: esZonaGam ? 'Tarda entre 1-2 dias en llegar' : 'Entrega 1-2 días hábiles'
       });
 
       // OPCIÓN B: Mensajero (Solo GAM)
@@ -98,7 +98,7 @@ export default function Checkout() {
           id: 'mensajero',
           nombre: 'Mensajero Privado',
           precio: precioMensajero,
-          detalle: 'Entrega día siguiente (Servicio Express)'
+          detalle: 'Entrega día siguiente (Solo dentro del GAM)'
         });
       }
 
@@ -333,9 +333,9 @@ export default function Checkout() {
                  <>Procesando...</>
                ) : (
                  metodoPago === 'sinpe' ? (
-                    <> <FaWhatsapp size={20} /> ENVIAR PEDIDO POR WHATSAPP</>
+                    <> ENVIAR PEDIDO POR WHATSAPP</>
                  ) : (
-                    <> <FaLock size={16} /> PAGAR CON TARJETA </>
+                    <> PAGAR CON TARJETA </>
                  )
                )}
             </button>
