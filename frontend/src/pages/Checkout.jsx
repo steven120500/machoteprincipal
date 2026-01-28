@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
 import { useNavigate } from 'react-router-dom';
-import { FaArrowLeft, FaLock, FaMapMarkerAlt, FaTruck } from 'react-icons/fa';
+import { FaArrowLeft, FaLock, FaMapMarkerAlt, FaTruck, FaTrash } from 'react-icons/fa'; // 👈 Agregamos FaTrash
 import { toast } from 'react-toastify';
 
 // 🧠 CEREBRO DEL GAM
@@ -16,7 +16,7 @@ const GAM_CANTONES = {
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 
 export default function Checkout() {
-  const { cart, cartTotal } = useCart();
+  const { cart, cartTotal, removeFromCart } = useCart(); // 👈 Traemos removeFromCart
   const navigate = useNavigate();
   
   // Estados de Ubicación
@@ -32,7 +32,7 @@ export default function Checkout() {
   const [opcionesEnvio, setOpcionesEnvio] = useState([]); 
   const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
   
-  const [loadingPay, setLoadingPay] = useState(false); // 👈 Nuevo estado de carga
+  const [loadingPay, setLoadingPay] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -110,7 +110,6 @@ export default function Checkout() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 👇 LÓGICA DE PAGO CON TILOPAY 👇
   const handlePayment = async (e) => {
     e.preventDefault();
     
@@ -124,12 +123,11 @@ export default function Checkout() {
     const nombreCanton = cantones[selectedCanton];
     const nombreDistrito = distritos[selectedDistrito];
 
-    // Datos del pedido
     const orderData = {
       cliente: {
         nombre: formData.nombre,
         telefono: formData.telefono,
-        correo: formData.correo || "cliente@futstore.cr", // TiloPay suele pedir correo
+        correo: formData.correo || "cliente@futstore.cr",
         direccion: `${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}. ${formData.direccionExacta}`
       },
       productos: cart.map(item => ({
@@ -148,7 +146,6 @@ export default function Checkout() {
     setLoadingPay(true);
     
     try {
-      // 1. Enviamos la orden a TU SERVIDOR (Backend)
       const res = await fetch(`${API_BASE}/api/tilopay/create-link`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -159,7 +156,6 @@ export default function Checkout() {
 
       if (!res.ok) throw new Error(data.message || "Error al crear pago");
 
-      // 2. Si todo sale bien, TiloPay nos da una URL. ¡Redirigimos al cliente!
       if (data.url) {
         window.location.href = data.url; 
       } else {
@@ -174,7 +170,21 @@ export default function Checkout() {
     }
   };
 
-  if (cart.length === 0) return null; 
+  // 👇 VALIDACIÓN: Si vacían el carrito, mostramos mensaje en vez de pantalla en blanco
+  if (cart.length === 0) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 pt-20 px-4 text-center">
+        <h2 className="text-2xl font-bold mb-4 text-gray-800">Tu carrito está vacío 🛒</h2>
+        <p className="text-gray-500 mb-6">Parece que eliminaste todos los productos.</p>
+        <button 
+          onClick={() => navigate('/')} 
+          className="bg-black text-white px-8 py-3 rounded-xl font-bold hover:bg-gray-800 transition shadow-lg"
+        >
+          Volver al Catálogo
+        </button>
+      </div>
+    );
+  }
 
   const precioEnvio = envioSeleccionado ? envioSeleccionado.precio : 0;
   const granTotal = cartTotal + precioEnvio;
@@ -203,7 +213,7 @@ export default function Checkout() {
                     <input type="tel" name="telefono" onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 ring-black outline-none" placeholder="8888-8888" required />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase">Correo (Para factura)</label>
+                    <label className="text-xs font-bold text-gray-500 uppercase">Correo</label>
                     <input type="email" name="correo" onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 ring-black outline-none" placeholder="juan@email.com" required />
                   </div>
                </div>
@@ -251,7 +261,7 @@ export default function Checkout() {
             <button 
               type="submit" 
               disabled={loadingPay}
-              className={`w-full text-black fondo-plateado py-4 rounded-xl font-bold text-lg transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98] ${loadingPay ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'}`}
+              className={`w-full text-black fondo-plateado py-4 rounded-xl font-bold text-lg transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98] ${loadingPay ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800 hover:text-white'}`}
             >
                {loadingPay ? (
                  <>Procesando...</>
@@ -262,7 +272,6 @@ export default function Checkout() {
                )}
             </button>
             <div className="flex justify-center gap-2 mt-4 grayscale opacity-60">
-               {/* Aquí puedes poner logos de tarjetas si tienes las imágenes */}
                <span className="text-[10px] text-gray-400">Pagos procesados por TiloPay</span>
             </div>
           </form>
@@ -273,14 +282,29 @@ export default function Checkout() {
           <h3 className="font-bold text-lg mb-4 border-b pb-2">Resumen del Pedido</h3>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {cart.map((item, index) => (
-              <div key={`${item._id}-${index}`} className="flex gap-4">
-                <div className="w-14 h-14 bg-gray-100 rounded-md border overflow-hidden flex-shrink-0">
+              <div key={`${item._id}-${index}`} className="flex gap-4 items-start border-b border-gray-50 pb-4 last:border-0">
+                {/* Imagen */}
+                <div className="w-16 h-16 bg-gray-100 rounded-md border overflow-hidden flex-shrink-0 relative">
                     <img src={item.imageSrc || 'https://via.placeholder.com/80'} className="w-full h-full object-contain" />
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-xs uppercase line-clamp-1">{item.name}</p>
-                  <p className="text-[10px] text-gray-500">Talla: {item.selectedSize} | x{item.quantity}</p>
-                  <p className="font-bold text-xs mt-1">₡{((item.discountPrice || item.price) * item.quantity).toLocaleString()}</p>
+
+                {/* Info + Botón Eliminar */}
+                <div className="flex-1 flex justify-between">
+                  <div className="pr-2">
+                    <p className="font-bold text-xs uppercase line-clamp-2 leading-tight mb-1">{item.name}</p>
+                    <p className="text-[10px] text-gray-500">Talla: <span className="font-bold text-black">{item.selectedSize}</span> | Cant: {item.quantity}</p>
+                    <p className="font-bold text-sm mt-1">₡{((item.discountPrice || item.price) * item.quantity).toLocaleString()}</p>
+                  </div>
+                  
+                  {/* 👇 BOTÓN BASURERO */}
+                  <button 
+                    onClick={() => removeFromCart(item._id || item.id, item.selectedSize)}
+                    className="text-gray-400 hover:text-red-600 transition p-2 hover:bg-red-50 rounded-full"
+                    title="Eliminar producto"
+                    type="button"
+                  >
+                    <FaTrash size={14} />
+                  </button>
                 </div>
               </div>
             ))}
