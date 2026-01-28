@@ -21,7 +21,7 @@ export default function ProductDetail({ user, onUpdate }) {
   const [loadingFetch, setLoadingFetch] = useState(true);
   const [selectedSize, setSelectedSize] = useState("");
   const [idx, setIdx] = useState(0); 
-  const [showDecisionModal, setShowDecisionModal] = useState(false); // 👈 NUEVO
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
 
   const [isEditing, setIsEditing] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
@@ -156,17 +156,28 @@ export default function ProductDetail({ user, onUpdate }) {
     setIdx(0);
   };
 
+  // 👇 FUNCIÓN DE WHATSAPP MEJORADA 👇
   const handleBuyWhatsApp = () => {
     if (!selectedSize) return toast.warning("Por favor, selecciona una talla.");
+    
     const precioFinal = product.discountPrice || product.price;
-    const mensaje = `👋 ¡Hola! Quiero comprar: *${product.name}* (Talla: ${selectedSize}) - ₡${precioFinal}`;
+    const currentUrl = window.location.href; // Captura el link actual
+
+    let mensaje = `👋 Hola, me interesa esta camiseta:\n\n`;
+    mensaje += `*Modelo:* ${product.name}\n`;
+    mensaje += `*Versión:* ${product.type}\n`;
+    mensaje += `*Talla:* ${selectedSize}\n`;
+    mensaje += `*Precio:* ₡${precioFinal.toLocaleString()}\n`;
+    mensaje += `*Link:* ${currentUrl}\n\n`;
+    mensaje += `¿Está disponible? Quedo atento. ✅`;
+
     window.open(`https://wa.me/50672327096?text=${encodeURIComponent(mensaje)}`, '_blank');
   };
 
   const handleAddToCart = () => {
     if (!selectedSize) return toast.warning("Selecciona una talla primero");
     addToCart(product, selectedSize);
-    setShowDecisionModal(true); // 👈 AQUÍ SE ABRE EL MODAL
+    setShowDecisionModal(true);
   };
 
   if (loadingFetch) return <div className="h-screen flex items-center justify-center font-bold text-xl">Cargando...</div>;
@@ -326,7 +337,7 @@ export default function ProductDetail({ user, onUpdate }) {
                 <AnimatePresence>
                   {selectedSize && stockRestante > 0 && stockRestante < 15 && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="mt-3 flex items-center gap-2 text-orange-600 bg-orange-50 p-2 rounded-md border border-orange-100">
-                      <span className="text-lg">🔥</span>
+                      <span className="text-lg"></span>
                       <p className="font-bold text-xs">¡Date prisa! Solo quedan <span className="text-base">{stockRestante}</span> unidades en talla {selectedSize}.</p>
                     </motion.div>
                   )}
