@@ -122,9 +122,9 @@ export default function Header({
                     <p className="text-blacks font-bold text-xl">{user.username}</p>
                   </div>
 
-                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Agregar usuario</button>}
-                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Ver usuarios</button>}
-                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Historial</button>}
+                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg">Agregar usuario</button>}
+                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg">Ver usuarios</button>}
+                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg">Historial</button>}
                   
                   <button onClick={() => { onLogout(); setSidebarOpen(false); }} className="w-full text-left mt-4 px-4 py-3 rounded-lg font-bold text-red-500 hover:bg-red-900/20 border border-red-900/50 transition">
                     Cerrar sesión
