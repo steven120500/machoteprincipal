@@ -5,13 +5,15 @@ import { FaArrowLeft, FaLock, FaMapMarkerAlt, FaTruck } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 // 🧠 CEREBRO DEL GAM
-// 1=SJ, 2=Alajuela, 3=Cartago, 4=Heredia
 const GAM_CANTONES = {
   "1": ["1", "2", "3", "6", "8", "9", "10", "13", "14", "15", "18"], 
   "2": ["1", "2", "5", "8"], 
   "3": ["1", "2", "3", "4", "6", "8"], 
   "4": ["1", "2", "3", "4", "5", "6", "7", "8", "9"] 
 };
+
+// ⚠️ AJUSTA ESTO SI TU BACKEND TIENE OTRA RUTA
+const API_BASE = "https://machoteprincipal.onrender.com"; 
 
 export default function Checkout() {
   const { cart, cartTotal } = useCart();
@@ -27,10 +29,11 @@ export default function Checkout() {
   const [selectedDistrito, setSelectedDistrito] = useState("");
 
   // Estados de Envío
-  const [opcionesEnvio, setOpcionesEnvio] = useState([]); // Lista de opciones disponibles
-  const [envioSeleccionado, setEnvioSeleccionado] = useState(null); // La opción elegida
+  const [opcionesEnvio, setOpcionesEnvio] = useState([]); 
+  const [envioSeleccionado, setEnvioSeleccionado] = useState(null);
+  
+  const [loadingPay, setLoadingPay] = useState(false); // 👈 Nuevo estado de carga
 
-  // Formulario
   const [formData, setFormData] = useState({
     nombre: '',
     telefono: '',
@@ -56,7 +59,6 @@ export default function Checkout() {
     setDistritos({});
     setOpcionesEnvio([]);
     setEnvioSeleccionado(null);
-    
     if (id) {
       fetch(`https://ubicaciones.paginasweb.cr/provincia/${id}/cantones.json`)
         .then(res => res.json())
@@ -64,7 +66,7 @@ export default function Checkout() {
     }
   };
 
-  // 3. Al cambiar Cantón (Calculamos las opciones)
+  // 3. Al cambiar Cantón
   const handleCantonChange = (e) => {
     const idCanton = e.target.value;
     setSelectedCanton(idCanton);
@@ -72,16 +74,14 @@ export default function Checkout() {
     setDistritos({});
 
     if (idCanton && selectedProvincia) {
-      // Cargar Distritos
       fetch(`https://ubicaciones.paginasweb.cr/provincia/${selectedProvincia}/canton/${idCanton}/distritos.json`)
         .then(res => res.json())
         .then(data => setDistritos(data));
 
-      // --- CÁLCULO DE OPCIONES ---
       const esZonaGam = GAM_CANTONES[selectedProvincia]?.includes(idCanton);
       const nuevasOpciones = [];
 
-      // OPCIÓN A: Correos (Siempre)
+      // OPCIÓN A: Correos
       nuevasOpciones.push({
         id: 'correos',
         nombre: 'Correos de Costa Rica',
@@ -93,7 +93,6 @@ export default function Checkout() {
       if (esZonaGam) {
         const esCartago = selectedProvincia === "3";
         const precioMensajero = esCartago ? 5000 : 4000;
-        
         nuevasOpciones.push({
           id: 'mensajero',
           nombre: 'Mensajero Privado',
@@ -103,7 +102,7 @@ export default function Checkout() {
       }
 
       setOpcionesEnvio(nuevasOpciones);
-      setEnvioSeleccionado(nuevasOpciones[0]); // Seleccionar la primera por defecto
+      setEnvioSeleccionado(nuevasOpciones[0]);
     }
   };
 
@@ -111,37 +110,68 @@ export default function Checkout() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handlePayment = (e) => {
+  // 👇 LÓGICA DE PAGO CON TILOPAY 👇
+  const handlePayment = async (e) => {
     e.preventDefault();
     
     if (!formData.nombre || !formData.telefono || !formData.direccionExacta || !selectedDistrito) {
       return toast.warning("Por favor llena todos los datos.");
     }
-    if (!envioSeleccionado) {
-      return toast.warning("Selecciona un método de envío.");
-    }
+    if (!envioSeleccionado) return toast.warning("Selecciona un método de envío.");
 
+    const totalFinal = cartTotal + envioSeleccionado.precio;
     const nombreProvincia = provincias[selectedProvincia];
     const nombreCanton = cantones[selectedCanton];
     const nombreDistrito = distritos[selectedDistrito];
-    const totalFinal = cartTotal + envioSeleccionado.precio;
 
-    let mensaje = `🆕 *NUEVO PEDIDO WEB*\n`;
-    mensaje += `👤 Cliente: ${formData.nombre}\n`;
-    mensaje += `📞 Tel: ${formData.telefono}\n`;
-    mensaje += `📍 Ubicación: ${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}\n`;
-    mensaje += `🏠 Señas: ${formData.direccionExacta}\n\n`;
+    // Datos del pedido
+    const orderData = {
+      cliente: {
+        nombre: formData.nombre,
+        telefono: formData.telefono,
+        correo: formData.correo || "cliente@futstore.cr", // TiloPay suele pedir correo
+        direccion: `${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}. ${formData.direccionExacta}`
+      },
+      productos: cart.map(item => ({
+        nombre: item.name,
+        precio: item.discountPrice || item.price,
+        cantidad: item.quantity,
+        talla: item.selectedSize
+      })),
+      envio: {
+        metodo: envioSeleccionado.nombre,
+        precio: envioSeleccionado.precio
+      },
+      total: totalFinal
+    };
+
+    setLoadingPay(true);
     
-    mensaje += `📦 *ENVÍO:* ${envioSeleccionado.nombre} (₡${envioSeleccionado.precio.toLocaleString()})\n`;
-    
-    mensaje += `\n🛒 *PRODUCTOS:*\n`;
-    cart.forEach(item => {
-      mensaje += `▪️ ${item.quantity}x ${item.name} (${item.selectedSize})\n`;
-    });
-    
-    mensaje += `\n💰 *TOTAL A PAGAR: ₡${totalFinal.toLocaleString()}*`;
-    
-    window.open(`https://wa.me/50672327096?text=${encodeURIComponent(mensaje)}`, '_blank');
+    try {
+      // 1. Enviamos la orden a TU SERVIDOR (Backend)
+      const res = await fetch(`${API_BASE}/api/tilopay/create-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData)
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) throw new Error(data.message || "Error al crear pago");
+
+      // 2. Si todo sale bien, TiloPay nos da una URL. ¡Redirigimos al cliente!
+      if (data.url) {
+        window.location.href = data.url; 
+      } else {
+        toast.error("No se recibió el link de pago.");
+      }
+
+    } catch (error) {
+      console.error(error);
+      toast.error("Error conectando con el banco. Intenta de nuevo.");
+    } finally {
+      setLoadingPay(false);
+    }
   };
 
   if (cart.length === 0) return null; 
@@ -153,7 +183,7 @@ export default function Checkout() {
     <div className="min-h-screen bg-gray-50 pt-28 pb-10 px-4 md:px-8">
       <div className="max-w-5xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-8">
         
-        {/* --- IZQUIERDA: DATOS --- */}
+        {/* --- IZQUIERDA --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
           <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-gray-500 mb-6 hover:text-black font-medium">
             <FaArrowLeft /> Volver
@@ -162,7 +192,6 @@ export default function Checkout() {
           <h2 className="text-2xl font-black italic uppercase mb-6">Información de Envío</h2>
           
           <form onSubmit={handlePayment} className="space-y-5">
-            {/* 1. Datos Personales */}
             <div className="grid grid-cols-1 gap-4">
                <div>
                   <label className="text-xs font-bold text-gray-500 uppercase">Nombre Completo</label>
@@ -174,13 +203,12 @@ export default function Checkout() {
                     <input type="tel" name="telefono" onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 ring-black outline-none" placeholder="8888-8888" required />
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-gray-500 uppercase">Correo</label>
-                    <input type="email" name="correo" onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 ring-black outline-none" placeholder="Opcional" />
+                    <label className="text-xs font-bold text-gray-500 uppercase">Correo (Para factura)</label>
+                    <input type="email" name="correo" onChange={handleChange} className="w-full border p-2 rounded focus:ring-2 ring-black outline-none" placeholder="juan@email.com" required />
                   </div>
                </div>
             </div>
 
-            {/* 2. Dirección */}
             <div className="border-t pt-4">
               <p className="font-bold text-sm mb-3 flex items-center gap-2"><FaMapMarkerAlt/> ¿Dónde entregamos?</p>
               <div className="grid grid-cols-3 gap-2 mb-3">
@@ -200,23 +228,13 @@ export default function Checkout() {
               <textarea name="direccionExacta" onChange={handleChange} rows="2" className="w-full border p-2 rounded text-sm focus:ring-2 ring-black outline-none" placeholder="Señas exactas (color de casa, frente a...)" required></textarea>
             </div>
 
-            {/* 3. SELECCIÓN DE ENVÍO (Radio Buttons) */}
             {opcionesEnvio.length > 0 && (
               <div className="border-t pt-4 animate-fade-in">
                 <p className="font-bold text-sm mb-3 flex items-center gap-2"><FaTruck/> Método de Envío</p>
                 <div className="space-y-3">
                   {opcionesEnvio.map((opcion) => (
-                    <label 
-                      key={opcion.id} 
-                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${envioSeleccionado?.id === opcion.id ? 'border-black bg-gray-50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}
-                    >
-                      <input 
-                        type="radio" 
-                        name="envio" 
-                        className="accent-black w-5 h-5 mr-3"
-                        checked={envioSeleccionado?.id === opcion.id}
-                        onChange={() => setEnvioSeleccionado(opcion)}
-                      />
+                    <label key={opcion.id} className={`flex items-center p-3 border rounded-lg cursor-pointer transition-all ${envioSeleccionado?.id === opcion.id ? 'border-black bg-gray-50 ring-1 ring-black' : 'border-gray-200 hover:border-gray-400'}`}>
+                      <input type="radio" name="envio" className="accent-black w-5 h-5 mr-3" checked={envioSeleccionado?.id === opcion.id} onChange={() => setEnvioSeleccionado(opcion)} />
                       <div className="flex-1">
                         <div className="flex justify-between font-bold text-sm">
                           <span>{opcion.nombre}</span>
@@ -230,10 +248,23 @@ export default function Checkout() {
               </div>
             )}
             
-            <button type="submit" className="w-full bg-black text-white py-4 rounded-xl font-bold text-lg hover:bg-gray-800 transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98]">
-               <FaLock size={16} /> PAGAR ₡{granTotal.toLocaleString()}
+            <button 
+              type="submit" 
+              disabled={loadingPay}
+              className={`w-full text-white py-4 rounded-xl font-bold text-lg transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98] ${loadingPay ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'}`}
+            >
+               {loadingPay ? (
+                 <>🔄 Procesando...</>
+               ) : (
+                 <>
+                   <FaLock size={16} /> IR A PAGAR ₡{granTotal.toLocaleString()}
+                 </>
+               )}
             </button>
-            <p className="text-[10px] text-center text-gray-400 mt-2">Pagos procesados de forma segura</p>
+            <div className="flex justify-center gap-2 mt-4 grayscale opacity-60">
+               {/* Aquí puedes poner logos de tarjetas si tienes las imágenes */}
+               <span className="text-[10px] text-gray-400">Pagos procesados por TiloPay</span>
+            </div>
           </form>
         </div>
 

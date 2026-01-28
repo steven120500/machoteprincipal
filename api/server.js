@@ -2,47 +2,57 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import compression from 'compression';
-import helmet from 'helmet'; // 🛡️ Seguridad extra
-import morgan from 'morgan'; // 📝 Logs de peticiones
+import helmet from 'helmet'; 
+import morgan from 'morgan'; 
 import connectDB from './config/db.js';
 
+// Rutas
 import productRoutes from './routes/productRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import pdfRoutes from './routes/pdfRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
+import tiloPayRoutes from './routes/tiloPayRoutes.js'; // 👈 NUEVO: Importar rutas de TiloPay
 
 dotenv.config();
 
-// 1. Validación de variables críticas (Evita que el server suba si falta algo)
-const requiredEnvs = ['MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL'];
+// 1. Validación de variables críticas (Agregamos las de TiloPay)
+const requiredEnvs = [
+  'MONGO_URI', 
+  'RESEND_API_KEY', 
+  'FRONTEND_URL',
+  'TILOPAY_USER',      // 👈 REQUERIDO
+  'TILOPAY_PASSWORD',  // 👈 REQUERIDO
+  'TILOPAY_API_KEY'    // 👈 REQUERIDO
+];
+
 requiredEnvs.forEach((env) => {
   if (!process.env[env]) {
-    console.error(`❌ ERROR: Falta la variable de entorno ${env}`);
-    process.exit(1);
+    console.warn(`⚠️ ADVERTENCIA: Falta la variable ${env}. El servidor podría fallar en esa función.`);
+    // No hacemos exit(1) estricto para que al menos arranque si estás probando local
   }
 });
 
 const app = express();
 
 /* -------- ajustes generales -------- */
-app.use(helmet());                          // Configura encabezados de seguridad automáticamente
+app.use(helmet());                          
 app.disable('x-powered-by');                
 app.set('json spaces', 0);                  
 app.set('trust proxy', 1);                  
 
 /* -------- middlewares globales -------- */
 app.use(compression());                     
-app.use(morgan('dev'));                     // Verás en la consola de Render cada clic: "POST /api/auth/login 200"
+app.use(morgan('dev'));                     
 
-// 2. CORS DINÁMICO (Usa la variable de Render o localhost)
+// 2. CORS DINÁMICO
 const allowedOrigins = [
   process.env.FRONTEND_URL, 
-  'http://localhost:5173'
+  'http://localhost:5173',
+  'http://127.0.0.1:5173' // A veces Vite levanta en esta IP
 ];
 
 app.use(cors({
   origin: (origin, callback) => {
-    // Permitir si no hay origen (Postman) o si está en la lista permitida
     if (!origin || allowedOrigins.includes(origin)) {
       return callback(null, true);
     }
@@ -57,13 +67,19 @@ app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 /* -------- conecta DB ANTES de montar rutas -------- */
-await connectDB();
+// Usamos try-catch para que no tumbe el server si Mongo falla al inicio (opcional pero recomendado)
+try {
+  await connectDB();
+} catch (error) {
+  console.error("❌ Error conectando a BD al inicio:", error.message);
+}
 
 /* -------- rutas de la app -------- */
 app.use('/api/auth', authRoutes);
 app.use('/api', pdfRoutes);
 app.use('/api/history', historyRoutes);
 app.use('/api/products', productRoutes);
+app.use('/api/tilopay', tiloPayRoutes); // 👈 NUEVO: Activar la ruta /api/tilopay/create-link
 
 /* -------- health checks -------- */
 app.get('/api/health', (_req, res) => res.status(200).json({ status: 'ok', t: Date.now() }));
