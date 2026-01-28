@@ -30,7 +30,7 @@ import "./index.css";
 // Páginas
 import ResetPassword from "./pages/ResetPassword";
 import ProductDetail from "./pages/ProductDetail.jsx";
-import Checkout from "./pages/Checkout.jsx"; // 👈 IMPORTANTE
+import Checkout from "./pages/Checkout.jsx"; 
 
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 const GOLD = "#9E8F91"
@@ -49,12 +49,16 @@ export default function App() {
   const [filterType, setFilterType] = useState("");
   const [filterSizes, setFilterSizes] = useState([]);
 
+  // Estados de Modales
   const [showAddModal, setShowAddModal] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
   const [showRegisterUserModal, setShowRegisterUserModal] = useState(false);
   const [showUserListModal, setShowUserListModal] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [showMedidas, setShowMedidas] = useState(false);
+
+  // 👇 DETECTAR SI ALGÚN MODAL ESTÁ ABIERTO
+  const isAnyModalOpen = showAddModal || showLogin || showRegisterUserModal || showUserListModal || showHistoryModal || showMedidas;
 
   const [page, setPage] = useState(1);
   const [limit] = useState(20);
@@ -173,32 +177,39 @@ export default function App() {
         <Routes>
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/product/:id" element={<ProductDetail user={user} onUpdate={handleProductUpdate} />} />
-          <Route path="/checkout" element={<Checkout />} /> {/* 👈 NUEVA RUTA */}
+          <Route path="/checkout" element={<Checkout />} />
           
           <Route path="/" element={
             <>
+              {/* --- ZONA DE MODALES --- */}
               {showRegisterUserModal && <RegisterUserModal onClose={() => setShowRegisterUserModal(false)} />}
               {showUserListModal && <UserListModal open={showUserListModal} onClose={() => setShowUserListModal(false)} />}
               {showHistoryModal && <HistoryModal open={showHistoryModal} onClose={() => setShowHistoryModal(false)} isSuperUser={user?.isSuperUser === true} roles={user?.roles || []} />}
               {showMedidas && <Medidas open={showMedidas} onClose={() => setShowMedidas(false)} currentType={filterType || "Todos"} />}
+              {showAddModal && <AddProductModal user={user} tallaPorTipo={tallaPorTipo} onAdd={(newProduct) => { setProducts(prev => [newProduct, ...prev]); setShowAddModal(false); toast.success("Producto agregado"); }} onCancel={() => setShowAddModal(false)} />}
+              {showLogin && <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLoginSuccess={(userData) => { setUser(userData); localStorage.setItem("user", JSON.stringify(userData)); setShowLogin(false); toast.success("Bienvenido"); }} onRegisterClick={() => setTimeout(() => setShowRegisterUserModal(true), 100)} />}
+              
               {loading && <LoadingOverlay message="Cargando productos..." />}
 
-              <div className="fixed top-0 left-0 w-full z-50">
-                <TopBanner />
-                <Header
-                  onLoginClick={() => setShowLogin(true)}
-                  onLogout={handleLogout}
-                  onLogoClick={() => { setFilterType(""); setSearchTerm(""); setPage(1); }}
-                  onMedidasClick={() => setShowMedidas(true)}
-                  user={user}
-                  isSuperUser={isSuperUser}
-                  canSeeHistory={canSeeHistory}
-                  setShowRegisterUserModal={setShowRegisterUserModal}
-                  setShowUserListModal={setShowUserListModal}
-                  setShowHistoryModal={setShowHistoryModal}
-                  setFilterType={setFilterType}
-                />
-              </div>
+              {/* --- HEADER (Solo se muestra si NO hay modales abiertos) --- */}
+              {!isAnyModalOpen && (
+                <div className="fixed top-0 left-0 w-full z-50">
+                  <TopBanner />
+                  <Header
+                    onLoginClick={() => setShowLogin(true)}
+                    onLogout={handleLogout}
+                    onLogoClick={() => { setFilterType(""); setSearchTerm(""); setPage(1); }}
+                    onMedidasClick={() => setShowMedidas(true)}
+                    user={user}
+                    isSuperUser={isSuperUser}
+                    canSeeHistory={canSeeHistory}
+                    setShowRegisterUserModal={setShowRegisterUserModal}
+                    setShowUserListModal={setShowUserListModal}
+                    setShowHistoryModal={setShowHistoryModal}
+                    setFilterType={setFilterType}
+                  />
+                </div>
+              )}
 
               <div className="h-[120px]" />
               <Bienvenido />
@@ -223,10 +234,6 @@ export default function App() {
                   ))}
                 </div>
               </div>
-
-              {showAddModal && <AddProductModal user={user} tallaPorTipo={tallaPorTipo} onAdd={(newProduct) => { setProducts(prev => [newProduct, ...prev]); setShowAddModal(false); toast.success("Producto agregado"); }} onCancel={() => setShowAddModal(false)} />}
-              
-              {showLogin && <LoginModal isOpen={showLogin} onClose={() => setShowLogin(false)} onLoginSuccess={(userData) => { setUser(userData); localStorage.setItem("user", JSON.stringify(userData)); setShowLogin(false); toast.success("Bienvenido"); }} onRegisterClick={() => setTimeout(() => setShowRegisterUserModal(true), 100)} />}
 
               {pages > 1 && (
                 <div className="mt-8 flex flex-col items-center gap-3">

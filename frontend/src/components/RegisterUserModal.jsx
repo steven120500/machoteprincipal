@@ -17,7 +17,7 @@ export default function RegisterUserModal({ onClose }) {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  // Roles (Los mantenemos para que puedas dar permisos)
+  // Roles
   const [roles, setRoles] = useState({
     add: false,
     edit: false,
@@ -46,7 +46,7 @@ export default function RegisterUserModal({ onClose }) {
 
       // Preparamos el paquete de datos para el backend
       const payload = { 
-        username: formData.email, // Usamos el correo como username para el login
+        username: formData.email, 
         email: formData.email,
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -78,14 +78,19 @@ export default function RegisterUserModal({ onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center pt-28 p-4">
-      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg relative animate-fade-in">
+    // 1. Quitamos pt-28 para centrarlo bien y evitar cortes en pantallas pequeñas
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center p-4">
+      
+      {/* 2. Agregamos max-h-[90vh] y overflow-y-auto para el SCROLL */}
+      <div className="elative bg-white pt-15 p-6 rounded-lg shadow-md max-w-md w-full max-h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400">
         
-        <button onClick={onClose} className="absolute top-4 right-4 fondo-plateado text-gray-400 hover:text-black transition">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-black transition z-10">
           <FaTimes size={20} />
         </button>
 
-        <h2 className="text-2xl font-black uppercase text-center mb-6 tracking-wide">CREAR CUENTA</h2>
+        <h2 className="text-2xl font-black uppercase text-center mb-6 tracking-wide sticky top-0 bg-white z-0 pb-2">
+          CREAR CUENTA
+        </h2>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           
@@ -162,6 +167,7 @@ export default function RegisterUserModal({ onClose }) {
                 onChange={handleChange}
                 required
               />
+              {/* Ajusté la posición del ojo para que quede centrado verticalmente */}
               <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bg-transparent right-3 top-0 -translate-y-1/2 text-gray-400 hover:text-black">
                 {showPassword ? <FaEyeSlash /> : <FaEye />}
               </button>
@@ -177,7 +183,7 @@ export default function RegisterUserModal({ onClose }) {
             </div>
           </div>
 
-          {/* Sección de Permisos (Roles) - Discreta */}
+          {/* Sección de Permisos (Roles) */}
           <div className="pt-2 border-t border-dashed">
             <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Permisos de Administrador:</p>
             <div className="flex flex-wrap gap-3">
@@ -203,7 +209,7 @@ export default function RegisterUserModal({ onClose }) {
           <button
             type="submit"
             disabled={loading}
-            className={`w-full py-4 fondo-plateado text-black rounded-xl font-bold uppercase tracking-wider hover:bg-gray-800 transition shadow-lg mt-4 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
+            className={`w-full py-4 fondo-plateado text-black rounded-xl font-bold uppercase tracking-wider hover:bg-gray-800 hover:text-white transition shadow-lg mt-4 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
             {loading ? "Creando..." : "Crear Cuenta"}
           </button>
