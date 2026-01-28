@@ -133,7 +133,7 @@ export default function Header({
               ) : (
                 <div className="text-center mt-10">
                   <FaUser size={50} className="text-gray-500 mx-auto mb-4"/>
-                  <p className="text-gray-400 mb-6">Inicia sesión para poder comprar.</p>
+                  <p className="text-gray-400 mb-6">Inicia sesión para recibir imformación.</p>
                   <button onClick={() => { onLoginClick(); setSidebarOpen(false); }} className="w-full bg-white text-black px-4 py-3 rounded-lg font-bold hover:bg-gray-200 transition">
                     Iniciar sesión
                   </button>
