@@ -68,7 +68,7 @@ export default function Header({
           {/* 🛒 BOTÓN CARRITO (Modificado para ir al Checkout) */}
           <button 
             onClick={handleCartClick} 
-            className="relative bg-white text-black p-2 rounded-full shadow-lg hover:bg-gray-200 transition"
+            className="relative bg-black text-white p-2 rounded-full shadow-lg hover:bg-gray-200 transition"
           >
             <FaShoppingCart size={20} />
             {cartCount > 0 && (
@@ -80,7 +80,7 @@ export default function Header({
 
           <button
             onClick={() => setSidebarOpen(true)}
-            className="rounded-full bg-black p-2 sm:text-lg shadow-md hover:bg-gray-800 text-white"
+            className="rounded-full bg-black p-2 sm:text-lg shadow-md hover:bg-gray-800 text-black"
           >
             <FaBars size={20} />
           </button>

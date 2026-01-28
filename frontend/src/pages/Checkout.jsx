@@ -251,13 +251,13 @@ export default function Checkout() {
             <button 
               type="submit" 
               disabled={loadingPay}
-              className={`w-full text-white py-4 rounded-xl font-bold text-lg transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98] ${loadingPay ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'}`}
+              className={`w-full text-black fondo-plateado py-4 rounded-xl font-bold text-lg transition shadow-lg mt-6 flex justify-center items-center gap-2 active:scale-[0.98] ${loadingPay ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'}`}
             >
                {loadingPay ? (
-                 <>🔄 Procesando...</>
+                 <>Procesando...</>
                ) : (
                  <>
-                   <FaLock size={16} /> IR A PAGAR ₡{granTotal.toLocaleString()}
+                   IR A PAGAR ₡{granTotal.toLocaleString()}
                  </>
                )}
             </button>
