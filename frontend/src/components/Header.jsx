@@ -119,12 +119,12 @@ export default function Header({
                 <>
                   <div className="mb-6 border-b border-gray-800 pb-4">
                     <p className="text-gray-400 text-sm">Hola,</p>
-                    <p className="text-white font-bold text-xl">{user.username}</p>
+                    <p className="text-blacks font-bold text-xl">{user.username}</p>
                   </div>
 
-                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Agregar usuario</button>}
-                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Ver usuarios</button>}
-                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Historial</button>}
+                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Agregar usuario</button>}
+                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Ver usuarios</button>}
+                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-black font-bold fondo-plateando hover:bg-gray-800 transition">Historial</button>}
                   
                   <button onClick={() => { onLogout(); setSidebarOpen(false); }} className="w-full text-left mt-4 px-4 py-3 rounded-lg font-bold text-red-500 hover:bg-red-900/20 border border-red-900/50 transition">
                     Cerrar sesión
@@ -133,7 +133,7 @@ export default function Header({
               ) : (
                 <div className="text-center mt-10">
                   <FaUser size={50} className="text-gray-500 mx-auto mb-4"/>
-                  <p className="text-gray-400 mb-6">Inicia sesión para ver tu historial y más.</p>
+                  <p className="text-gray-400 mb-6">Inicia sesión para poder comprar.</p>
                   <button onClick={() => { onLoginClick(); setSidebarOpen(false); }} className="w-full bg-white text-black px-4 py-3 rounded-lg font-bold hover:bg-gray-200 transition">
                     Iniciar sesión
                   </button>
