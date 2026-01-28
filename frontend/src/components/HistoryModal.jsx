@@ -135,7 +135,7 @@ export default function HistoryModal({ open, onClose, isSuperUser = false }) {
   if (!open) return null;
 
   return (
-    <div className="mt-32 mb-24 fixed inset-0 z-50 bg-black/40 flex items-center justify-center py-6">
+    <div className="mt-60 fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center pt-44 -p-10">
       <div className="relative bg-white pt-15 p-6 rounded-lg shadow-md max-w-md w-full max-h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-400">
         {/* Header con calendario dentro */}
         <div className="flex items-center gap-2 pb-4 border-b">

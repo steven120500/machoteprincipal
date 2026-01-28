@@ -1,13 +1,23 @@
-// src/components/RegisterUserModal.jsx
 import { useState } from "react";
 import { toast } from "react-toastify";
+import { FaTimes, FaEye, FaEyeSlash, FaUser, FaPhone, FaEnvelope, FaLock } from "react-icons/fa";
+
+const API_BASE = "https://machoteprincipal.onrender.com";
 
 export default function RegisterUserModal({ onClose }) {
-  const [username, setUsername] = useState("");
-  const [password, setPassword] = useState("");
+  // Estados para los nuevos datos
+  const [formData, setFormData] = useState({
+    firstName: "",
+    lastName: "",
+    phone: "",
+    email: "",
+    password: ""
+  });
+  
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  // ← añadimos history aquí (los otros se mantienen igual)
+  // Roles (Los mantenemos para que puedas dar permisos)
   const [roles, setRoles] = useState({
     add: false,
     edit: false,
@@ -15,108 +25,190 @@ export default function RegisterUserModal({ onClose }) {
     history: false,
   });
 
-  async function handleSubmit() {
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    
+    // Validaciones básicas
+    if (!formData.email || !formData.password || !formData.firstName) {
+      return toast.warning("Por favor llena los campos obligatorios");
+    }
+
+    setLoading(true);
+
     try {
       const selectedRoles = Object.entries(roles)
         .filter(([, value]) => value)
         .map(([key]) => key);
 
-      const payload = { username, password, roles: selectedRoles };
+      // Preparamos el paquete de datos para el backend
+      const payload = { 
+        username: formData.email, // Usamos el correo como username para el login
+        email: formData.email,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phone: formData.phone,
+        password: formData.password,
+        roles: selectedRoles 
+      };
 
-      const res = await fetch(
-        "https://machoteprincipal.onrender.com//api/auth/register",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        }
-      );
+      const res = await fetch(`${API_BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
 
       const data = await res.json();
 
       if (res.ok) {
-        toast.success("Usuario registrado correctamente");
-        onClose?.();
+        toast.success("✅ Usuario creado exitosamente");
+        onClose?.(); 
       } else {
-        toast.error(data.message || "Error al registrar usuario");
+        toast.error(data.message || "Error al registrar");
       }
     } catch (error) {
-      console.error("Error al registrar usuario:", error);
-      toast.error("Error en el servidor");
+      console.error(error);
+      toast.error("Error de conexión");
+    } finally {
+      setLoading(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white p-6 rounded w-[90%] max-w-[600px]">
-        <h2 className="text-xl font-bold mb-4">Registrar nuevo usuario</h2>
+    <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-center items-center pt-28 p-4">
+      <div className="bg-white p-8 rounded-2xl shadow-2xl w-full max-w-lg relative animate-fade-in">
+        
+        <button onClick={onClose} className="absolute top-4 right-4 fondo-plateado text-gray-400 hover:text-black transition">
+          <FaTimes size={20} />
+        </button>
 
-        {/* Usuario */}
-        <div className="border p-2 w-full mb-3">
-          <input
-            type="text"
-            placeholder="Nombre de usuario"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            className="w-full"
-          />
-        </div>
+        <h2 className="text-2xl font-black uppercase text-center mb-6 tracking-wide">CREAR CUENTA</h2>
 
-        {/* Contraseña */}
-        <div className="relative mb-2">
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Contraseña"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="border p-2 w-full pr-10"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="absolute right-2 top-1 text-xs -translate-y-1/2 text-gray-600"
-          >
-            {showPassword ? "No Mostrar" : "Mostrar"}
-          </button>
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Fila 1: Nombre y Apellido */}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+               <label className="text-xs font-bold text-gray-400 uppercase ml-1">Nombre</label>
+               <div className="relative">
+                 <FaUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+                 <input 
+                   name="firstName" 
+                   type="text" 
+                   placeholder="Nombre" 
+                   className="w-full border border-gray-200 bg-gray-50 pl-9 p-3 rounded-xl focus:ring-1 ring-black outline-none transition"
+                   onChange={handleChange}
+                   required
+                 />
+               </div>
+            </div>
+            <div>
+               <label className="text-xs font-bold text-gray-400 uppercase ml-1">Apellido</label>
+               <input 
+                 name="lastName" 
+                 type="text" 
+                 placeholder="Apellido" 
+                 className="w-full border border-gray-200 bg-gray-50 p-3 rounded-xl focus:ring-1 ring-black outline-none transition"
+                 onChange={handleChange}
+               />
+            </div>
+          </div>
 
-        {/* Permisos */}
-        <label className="block font-semibold mb-1">Permisos:</label>
-        <div className="mb-4 space-y-2">
-          {["add", "edit", "delete", "history"].map((perm) => (
-            <label key={perm} className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={roles[perm]}
-                onChange={() =>
-                  setRoles((prev) => ({ ...prev, [perm]: !prev[perm] }))
-                }
+          {/* Fila 2: Celular */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Celular (8 dígitos)</label>
+            <div className="relative">
+              <FaPhone className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input 
+                 name="phone" 
+                 type="tel" 
+                 placeholder="88888888" 
+                 maxLength={8}
+                 className="w-full border border-gray-200 bg-gray-50 pl-9 p-3 rounded-xl focus:ring-1 ring-black outline-none transition"
+                 onChange={handleChange}
               />
-              <span>
-                {perm === "add" && "Agregar productos"}
-                {perm === "edit" && "Editar productos"}
-                {perm === "delete" && "Eliminar productos"}
-                {perm === "history" && "Ver historial"}
-              </span>
-            </label>
-          ))}
-        </div>
+            </div>
+          </div>
 
-        {/* Botones */}
-        <div className="flex justify-between">
+          {/* Fila 3: Correo */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Correo Electrónico</label>
+            <div className="relative">
+              <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input 
+                 name="email" 
+                 type="email" 
+                 placeholder="tu@correo.com" 
+                 className="w-full border border-gray-200 bg-gray-50 pl-9 p-3 rounded-xl focus:ring-1 ring-black outline-none transition"
+                 onChange={handleChange}
+                 required
+              />
+            </div>
+          </div>
+
+          {/* Fila 4: Contraseña */}
+          <div>
+            <label className="text-xs font-bold text-gray-400 uppercase ml-1">Contraseña</label>
+            <div className="relative">
+              <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm" />
+              <input
+                name="password"
+                type={showPassword ? "text" : "password"}
+                placeholder="********"
+                className="w-full border border-gray-200 bg-gray-50 pl-9 pr-10 p-3 rounded-xl focus:ring-1 ring-black outline-none transition"
+                onChange={handleChange}
+                required
+              />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute bg-transparent right-3 top-0 -translate-y-1/2 text-gray-400 hover:text-black">
+                {showPassword ? <FaEyeSlash /> : <FaEye />}
+              </button>
+            </div>
+            {/* Requisitos visuales */}
+            <div className="mt-2 ml-1 space-y-1">
+               <p className={`text-[10px] flex items-center gap-1 ${formData.password.length >= 6 ? 'text-green-600' : 'text-gray-400'}`}>
+                 ○ 6+ caracteres
+               </p>
+               <p className={`text-[10px] flex items-center gap-1 ${/[0-9]/.test(formData.password) ? 'text-green-600' : 'text-gray-400'}`}>
+                 ○ Un número
+               </p>
+            </div>
+          </div>
+
+          {/* Sección de Permisos (Roles) - Discreta */}
+          <div className="pt-2 border-t border-dashed">
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Permisos de Administrador:</p>
+            <div className="flex flex-wrap gap-3">
+              {[
+                { key: "add", label: "Agregar" },
+                { key: "edit", label: "Editar" },
+                { key: "delete", label: "Eliminar" },
+                { key: "history", label: "Historial" }
+              ].map(({ key, label }) => (
+                <label key={key} className="flex items-center gap-1 cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition">
+                  <input
+                    type="checkbox"
+                    checked={roles[key]}
+                    onChange={() => setRoles((prev) => ({ ...prev, [key]: !prev[key] }))}
+                    className="accent-black w-4 h-4"
+                  />
+                  <span className="text-xs font-medium text-gray-600">{label}</span>
+                </label>
+              ))}
+            </div>
+          </div>
+
           <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-400 text-white rounded"
+            type="submit"
+            disabled={loading}
+            className={`w-full py-4 fondo-plateado text-black rounded-xl font-bold uppercase tracking-wider hover:bg-gray-800 transition shadow-lg mt-4 ${loading ? 'opacity-70 cursor-not-allowed' : ''}`}
           >
-            Cancelar
+            {loading ? "Creando..." : "Crear Cuenta"}
           </button>
-          <button
-            onClick={handleSubmit}
-            className="px-4 py-2 bg-green-600 text-white rounded"
-          >
-            Registrar
-          </button>
-        </div>
+
+        </form>
       </div>
     </div>
   );
