@@ -1,10 +1,10 @@
 import logo from "../assets/logo.png";
-import { FaBars, FaTimes, FaShoppingCart } from "react-icons/fa";
+import { FaBars, FaTimes, FaShoppingCart, FaUser } from "react-icons/fa"; // 👈 Agregamos FaUser
 import { LiaRulerSolid } from "react-icons/lia";
 import { FiPhoneCall } from "react-icons/fi";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom"; // 👈 Importamos navegación
-import { toast } from "react-toastify"; // 👈 Para avisar si está vacío
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import Contacto from "./Contacto"; 
 import { useCart } from "../context/CartContext";
 
@@ -23,16 +23,25 @@ export default function Header({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showContacto, setShowContacto] = useState(false);
   
-  const navigate = useNavigate(); // 👈 Hook para navegar
-  const { cartCount } = useCart(); // 👈 Solo ocupamos el contador
+  const navigate = useNavigate();
+  const { cartCount } = useCart();
 
-  // 👇 Lógica para ir a Finalizar Compra
   const handleCartClick = () => {
     if (cartCount > 0) {
-      navigate('/checkout'); // ✅ Va directo a pagar
+      navigate('/checkout');
     } else {
       toast.info("Tu carrito está vacío 🛒");
     }
+  };
+
+  // 👇 Función para sacar las iniciales (Ej: "Steven Corrales" -> "SC")
+  const getInitials = (name) => {
+    if (!name) return "";
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0].substring(0, 2).toUpperCase();
   };
 
   return (
@@ -62,13 +71,13 @@ export default function Header({
           </button>
         </div>
 
-        {/* 🔹 DERECHA: CARRITO Y MENÚ */}
+        {/* 🔹 DERECHA: CARRITO Y MENÚ DE USUARIO */}
         <div className="flex items-center gap-3">
           
-          {/* 🛒 BOTÓN CARRITO (Modificado para ir al Checkout) */}
+          {/* 🛒 BOTÓN CARRITO */}
           <button 
             onClick={handleCartClick} 
-            className="relative bg-black text-white p-2 rounded-full shadow-lg hover:bg-gray-200 transition"
+            className="relative bg-black text-white p-2 rounded-full shadow-lg hover:bg-gray-800 transition"
           >
             <FaShoppingCart size={20} />
             {cartCount > 0 && (
@@ -78,33 +87,57 @@ export default function Header({
             )}
           </button>
 
+          {/* 👤 BOTÓN PERFIL / MENÚ (Modificado) */}
           <button
             onClick={() => setSidebarOpen(true)}
-            className="rounded-full bg-black p-2 sm:text-lg shadow-md hover:bg-gray-800 text-black"
+            className="rounded-full bg-black p-2 w-10 h-10 flex items-center justify-center shadow-md hover:bg-gray-800 text-white transition-all border border-gray-700"
+            title={user ? user.username : "Menú"}
           >
-            <FaBars size={20} />
+            {user ? (
+              // Si hay usuario: Mostramos iniciales
+              <span className="font-bold text-sm tracking-tighter">
+                {getInitials(user.username || user.name || "US")}
+              </span>
+            ) : (
+              // Si NO hay usuario: Mostramos icono de persona
+              <FaUser size={18} />
+            )}
           </button>
         </div>
       </div>
 
-      {/* 🔸 SIDEBAR (Menú hamburguesa) */}
+      {/* 🔸 SIDEBAR (Menú lateral) */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[100] bg-black/40" onClick={() => setSidebarOpen(false)}>
           <div className="fixed top-0 right-0 h-full w-72 sm:w-80 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="relative fondo-plateado h-full overflow-y-auto pt-14 p-5" style={{ backgroundColor: "#000" }}>
-              <button onClick={() => setSidebarOpen(false)} className="absolute text-white top-3 right-3 rounded-full w-9 h-9 grid place-items-center">
+              <button onClick={() => setSidebarOpen(false)} className="absolute text-white top-3 right-3 rounded-full w-9 h-9 grid place-items-center hover:bg-gray-900">
                 <FaTimes size={20} />
               </button>
 
               {user ? (
                 <>
-                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg text-white font-bold hover:bg-gray-900">Agregar usuario</button>}
-                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg text-white font-bold hover:bg-gray-900">Ver usuarios</button>}
-                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg text-white font-bold hover:bg-gray-900">Historial</button>}
-                  <button onClick={() => { onLogout(); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mt-2 px-4 py-2 rounded-lg font-bold text-red-500 hover:bg-gray-900">Cerrar sesión</button>
+                  <div className="mb-6 border-b border-gray-800 pb-4">
+                    <p className="text-gray-400 text-sm">Hola,</p>
+                    <p className="text-white font-bold text-xl">{user.username}</p>
+                  </div>
+
+                  {isSuperUser && <button onClick={() => { setShowRegisterUserModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Agregar usuario</button>}
+                  {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Ver usuarios</button>}
+                  {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full text-left mb-3 px-4 py-3 rounded-lg text-white font-bold bg-gray-900 hover:bg-gray-800 transition">Historial</button>}
+                  
+                  <button onClick={() => { onLogout(); setSidebarOpen(false); }} className="w-full text-left mt-4 px-4 py-3 rounded-lg font-bold text-red-500 hover:bg-red-900/20 border border-red-900/50 transition">
+                    Cerrar sesión
+                  </button>
                 </>
               ) : (
-                <button onClick={() => { onLoginClick(); setSidebarOpen(false); }} className="w-full fondo-plateado text-left px-4 py-2 rounded-lg font-bold text-white hover:bg-gray-900">Iniciar sesión</button>
+                <div className="text-center mt-10">
+                  <FaUser size={50} className="text-gray-500 mx-auto mb-4"/>
+                  <p className="text-gray-400 mb-6">Inicia sesión para ver tu historial y más.</p>
+                  <button onClick={() => { onLoginClick(); setSidebarOpen(false); }} className="w-full bg-white text-black px-4 py-3 rounded-lg font-bold hover:bg-gray-200 transition">
+                    Iniciar sesión
+                  </button>
+                </div>
               )}
             </div>
           </div>
@@ -115,7 +148,7 @@ export default function Header({
       {showContacto && (
         <div className="fixed inset-0 bg-black/70 z-[9999] flex items-center justify-center">
           <div className="bg-white p-6 rounded-lg shadow-lg relative w-80 sm:w-96">
-            <button onClick={() => setShowContacto(false)} className="absolute top-2 right-2 text-black font-bold"><FaTimes size={20} /></button>
+            <button onClick={() => setShowContacto(false)} className="absolute top-2 right-2 text-black font-bold hover:text-red-500"><FaTimes size={20} /></button>
             <h2 className="text-l font-bold mb-4 text-center">Contáctanos</h2>
             <Contacto />
           </div>
