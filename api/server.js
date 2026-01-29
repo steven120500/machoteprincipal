@@ -11,11 +11,11 @@ import productRoutes from './routes/productRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import pdfRoutes from './routes/pdfRoutes.js';
 import historyRoutes from './routes/historyRoutes.js';
-import tiloPayRoutes from './routes/tiloPayRoutes.js'; // 👈 ÚNICO archivo de pagos
+import tiloPayRoutes from './routes/tiloPayRoutes.js'; // 👈 USAMOS ESTE ÚNICO ARCHIVO
 
 dotenv.config();
 
-// Validación de variables
+// Validación de variables (Solo avisa, no bloquea para que puedas ver logs)
 const requiredEnvs = ['MONGO_URI', 'RESEND_API_KEY', 'FRONTEND_URL', 'TILOPAY_USER', 'TILOPAY_PASSWORD', 'TILOPAY_API_KEY'];
 requiredEnvs.forEach((env) => {
   if (!process.env[env]) console.warn(`⚠️ FALTA VARIABLE: ${env}`);
@@ -31,14 +31,14 @@ app.set('trust proxy', 1);
 app.use(compression());                     
 app.use(morgan('dev'));                     
 
-// CORS: Permisos exactos según tus capturas
+// CORS: Lista blanca basada en tus capturas
 const allowedOrigins = [
   process.env.FRONTEND_URL,
-  'https://machote.onrender.com',            // Tu frontend de pruebas
-  'https://machoteprincipal.onrender.com',   // Tu backend
-  'https://futstorecr.com',                  // Dominio oficial
-  'https://www.futstorecr.com',              // Dominio oficial www
-  'http://localhost:5173'                    // Local
+  'https://machote.onrender.com',            // Tu Frontend
+  'https://machoteprincipal.onrender.com',   // Tu Backend
+  'https://futstorecr.com',
+  'https://www.futstorecr.com',
+  'http://localhost:5173'
 ];
 
 app.use(cors({

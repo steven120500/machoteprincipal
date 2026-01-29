@@ -5,32 +5,34 @@ const router = express.Router();
 
 router.post('/create-link', async (req, res) => {
   try {
+    console.log("📥 Recibiendo petición de pago...");
+    console.log("Datos recibidos:", req.body); // 👈 ESTO TE DIRÁ POR QUÉ FALLA EL FRONTEND
+
     const { amount, orderId, firstName, lastName, email } = req.body;
 
-    // Validación estricta para evitar el error "Faltan datos"
+    // 1. Validación estricta
     if (!amount || !email) {
-      console.error("❌ Faltan datos en el body:", req.body);
+      console.error("❌ RECHAZADO: Faltan datos (monto o email)");
       return res.status(400).json({ message: "Faltan datos obligatorios (monto o email)" });
     }
 
-    // Leer Credenciales
-    const API_USER = process.env.TILOPAY_USER;
-    const API_PASSWORD = process.env.TILOPAY_PASSWORD;
-    const KEY_ID = process.env.TILOPAY_API_KEY; 
+    // 2. Cargar y LIMPIAR credenciales (El .trim() borra los espacios fantasma)
+    const API_USER = process.env.TILOPAY_USER?.trim();
+    const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
+    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); 
     
-    // URL de retorno (Usa la variable o la del machote por defecto)
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    // DEBUG: Revisa esto en los logs de Render para cazar el error Code 8
-    console.log("🔍 DIAGNÓSTICO TILOPAY:");
-    console.log(`- User Configurado: ${API_USER ? 'SÍ' : 'NO'}`);
-    console.log(`- Key ID a enviar: '${KEY_ID}'`); // ¡Fíjate si aquí salen espacios en blanco!
-    console.log(`- Retorno a: ${FRONTEND}`);
+    // Debug de seguridad (Sin mostrar contraseñas completas)
+    console.log("🔐 Credenciales procesadas:");
+    console.log(`- User: ${API_USER ? 'OK' : 'FALTA'}`);
+    console.log(`- Key ID: '${KEY_ID}'`); // Verifica en el log si esto se ve correcto
 
     if (!API_USER || !API_PASSWORD || !KEY_ID) {
-      return res.status(500).json({ message: "Faltan credenciales en el servidor (Environment Variables)" });
+      return res.status(500).json({ message: "Error de configuración: Faltan credenciales en Render." });
     }
 
+    // 3. Autenticación
     const authString = Buffer.from(`${API_USER}:${API_PASSWORD}`).toString('base64');
 
     const payload = {
@@ -46,9 +48,9 @@ router.post('/create-link', async (req, res) => {
       cancel_url: `${FRONTEND}/checkout?status=cancel`
     };
 
-    // --- LÓGICA DE DOBLE INTENTO ---
+    // --- ESTRATEGIA DE DOBLE INTENTO ---
     
-    // INTENTO 1: API Moderna
+    // Intento A: API Moderna
     try {
       console.log("📡 Intentando conectar a: api.tilopay.com...");
       const response = await axios.post(
@@ -56,42 +58,43 @@ router.post('/create-link', async (req, res) => {
         payload,
         { headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' } }
       );
-      console.log("✅ Éxito con API Moderna:", response.data.url);
+      console.log("✅ Éxito (API Moderna):", response.data.url);
       return res.json({ url: response.data.url });
 
     } catch (apiError) {
-      console.warn(`⚠️ Falló api.tilopay.com (${apiError.response?.status}). Probando alternativa...`);
+      console.warn(`⚠️ Falló API Moderna (${apiError.response?.status}). Probando Legacy...`);
       
-      // INTENTO 2: API Legacy (app.tilopay.com)
+      // Intento B: API Legacy (Por si tu cuenta es antigua o diferente)
       try {
         const responseBackup = await axios.post(
           'https://app.tilopay.com/api/v1/process',
           payload,
           { headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' } }
         );
-        console.log("✅ Éxito con API Legacy:", responseBackup.data.url);
+        console.log("✅ Éxito (API Legacy):", responseBackup.data.url);
         return res.json({ url: responseBackup.data.url });
 
       } catch (appError) {
-        // Si fallan las dos, lanzamos el error real
-        throw appError; 
+        // Si fallan las dos, analizamos el error final
+        const errorData = appError.response?.data || {};
+        console.error("❌ ERROR FINAL TILOPAY:", JSON.stringify(errorData, null, 2));
+
+        if (JSON.stringify(errorData).includes('"code":8')) {
+          return res.status(500).json({ 
+             message: "Credenciales rechazadas por TiloPay. Verifica tu KEY ID.",
+             detalle: "Error Code 8: Merchant Not Found"
+          });
+        }
+        
+        throw appError;
       }
     }
 
   } catch (error) {
-    const errorData = error.response?.data || {};
-    const statusCode = error.response?.status || 500;
-
-    console.error(`❌ ERROR FINAL (${statusCode}):`, JSON.stringify(errorData, null, 2));
-    
-    // Pista específica para tu error Code 8
-    if (JSON.stringify(errorData).includes('"code":8')) {
-      console.error("🚨 IMPORTANTE: El Error Code 8 confirma que el KEY ID es incorrecto. Revisa espacios en blanco en Render.");
-    }
-
-    res.status(statusCode).json({ 
+    console.error("❌ Error General:", error.message);
+    res.status(500).json({ 
       message: "Error al conectar con la pasarela",
-      detalle: errorData
+      detalle: error.response?.data || error.message
     });
   }
 });
