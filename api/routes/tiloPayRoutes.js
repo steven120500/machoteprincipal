@@ -3,74 +3,95 @@ import axios from 'axios';
 
 const router = express.Router();
 
-// Credenciales desde variables de entorno
-const TILO_USER = process.env.TILOPAY_USER;
-const TILO_PASSWORD = process.env.TILOPAY_PASSWORD;
-const TILO_API_KEY = process.env.TILOPAY_API_KEY;
-// URL base de TiloPay (Cambiar a producción cuando te den luz verde)
-const TILO_API_URL = 'https://app.tilopay.com/api/v1'; 
-
 router.post('/create-link', async (req, res) => {
   try {
-    const { cliente, productos, envio, total } = req.body;
-    
-    // Generar ID de orden único (Ej: FUT-1738492000)
-    const orderId = `FUT-${Math.floor(Date.now() / 1000)}`;
+    const { amount, orderId, firstName, lastName, email } = req.body;
 
-    // 1. AUTENTICACIÓN: Obtener Token
-    const authResponse = await axios.post(`${TILO_API_URL}/login`, {
-      apiuser: TILO_USER,
-      password: TILO_PASSWORD,
-      apikey: TILO_API_KEY
-    });
-
-    // Dependiendo de la versión de TiloPay, el token viene en headers o body.
-    // Usualmente es 'Authorization' en el header de respuesta o access_token en el body.
-    let token = authResponse.headers['authorization'];
-    
-    if (!token && authResponse.data.access_token) {
-        token = `Bearer ${authResponse.data.access_token}`;
+    if (!amount || !email) {
+      return res.status(400).json({ message: "Faltan datos obligatorios" });
     }
 
-    if (!token) {
-        throw new Error("No se pudo obtener el token de autenticación de TiloPay");
+    // Credenciales
+    const API_USER = process.env.TILOPAY_USER;
+    const API_PASSWORD = process.env.TILOPAY_PASSWORD;
+    const KEY_ID = process.env.TILOPAY_API_KEY; 
+    
+    // URL de retorno (Usa la variable FRONTEND_URL o cae a la del machote por defecto)
+    const BASE_URL = process.env.FRONTEND_URL || "https://machote.onrender.com";
+
+    // DEBUG: Revisa esto en los logs de Render
+    console.log("🔍 INTENTO DE PAGO:");
+    console.log(`- Enviando Key ID: ${KEY_ID}`);
+    console.log(`- Redirigiendo a: ${BASE_URL}`);
+
+    if (!API_USER || !API_PASSWORD || !KEY_ID) {
+      return res.status(500).json({ message: "Faltan credenciales en el servidor" });
     }
 
-    // 2. CREAR LINK DE PAGO
-    const linkResponse = await axios.post(`${TILO_API_URL}/payment-links`, {
-      amount: total,
+    const authString = Buffer.from(`${API_USER}:${API_PASSWORD}`).toString('base64');
+
+    const payload = {
+      key_id: KEY_ID,
+      amount: amount,
       currency: "CRC",
-      order_number: orderId,
-      description: `Compra FutStore - ${productos.length} items`,
-      client: cliente.nombre,
-      email: cliente.correo, // Importante para TiloPay
-      phone: cliente.telefono,
-      address: cliente.direccion,
-      // URLs a donde vuelve el usuario después de pagar
-      success_url: `${process.env.FRONTEND_URL}/pago-exitoso`, 
-      error_url: `${process.env.FRONTEND_URL}/checkout?error=true`,
-      // callback_url: "..." // Opcional: para recibir confirmación en segundo plano
-    }, {
-      headers: {
-        'Authorization': token,
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      }
-    });
+      bill_to_first_name: firstName || "Cliente",
+      bill_to_last_name: lastName || "FutStore",
+      bill_to_email: email,
+      order_id: orderId || `ORD-${Date.now()}`,
+      description: `Compra FutStore #${orderId}`,
+      redirect_url: `${BASE_URL}/checkout?status=success`,
+      cancel_url: `${BASE_URL}/checkout?status=cancel`
+    };
 
-    // 3. RESPONDER AL FRONTEND
-    if (linkResponse.data && linkResponse.data.url) {
-      res.json({ url: linkResponse.data.url });
-    } else {
-      console.error("Respuesta TiloPay:", linkResponse.data);
-      res.status(500).json({ message: "TiloPay no devolvió una URL válida" });
+    // INTENTO 1: Usar la URL API moderna
+    try {
+      const response = await axios.post(
+        'https://api.tilopay.com/api/v1/process',
+        payload,
+        {
+          headers: {
+            'Authorization': `Basic ${authString}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log("✅ Link generado (API):", response.data.url);
+      return res.json({ url: response.data.url });
+
+    } catch (apiError) {
+      console.warn("⚠️ Falló api.tilopay.com, intentando con app.tilopay.com...");
+      
+      // INTENTO 2: Usar la URL APP (Fallback por si tu cuenta es Legacy)
+      const responseBackup = await axios.post(
+        'https://app.tilopay.com/api/v1/process',
+        payload,
+        {
+          headers: {
+            'Authorization': `Basic ${authString}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+      
+      console.log("✅ Link generado (APP):", responseBackup.data.url);
+      return res.json({ url: responseBackup.data.url });
     }
 
   } catch (error) {
-    console.error("❌ Error TiloPay:", error.response?.data || error.message);
-    res.status(500).json({ 
-      message: "Error al generar el pago", 
-      details: error.response?.data || error.message 
+    const errorData = error.response?.data || {};
+    const statusCode = error.response?.status || 500;
+
+    console.error(`❌ ERROR TILOPAY FINAL (${statusCode}):`, JSON.stringify(errorData, null, 2));
+    
+    // Si es el error "Code 8", le damos una pista al usuario
+    if (errorData?.path?.code === 8) {
+      console.error("🚨 PISTA: El error 'Code 8' significa que el KEY ID es incorrecto o no existe.");
+    }
+
+    res.status(statusCode).json({ 
+      message: "Error al conectar con la pasarela",
+      detalle: errorData
     });
   }
 });
