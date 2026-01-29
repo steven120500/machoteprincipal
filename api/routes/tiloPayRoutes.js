@@ -7,7 +7,7 @@ router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // Mapeo de datos (Ya vimos que esto funciona bien)
+    // Mapeo de datos
     const amount = total; 
     const email = cliente?.correo;
     const fullName = cliente?.nombre || "Cliente";
@@ -18,29 +18,24 @@ router.post('/create-link', async (req, res) => {
     // 1. CREDENCIALES
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
-    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); 
+    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); // Aquí vendrá la LLAVE LARGA (5400...)
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    // --- DIAGNÓSTICO DE CREDENCIALES (Mira esto en los logs) ---
-    console.log("🔍 REVISIÓN DE LLAVES:");
-    if (KEY_ID && KEY_ID.length > 20) {
-      console.warn("⚠️ ALERTA: Tu Key ID es muy largo (" + KEY_ID.length + " letras).");
-      console.warn("   ¿Seguro que no pusiste la Contraseña en el campo de Key ID?");
-      console.warn("   El Key ID suele ser un número corto (ej: 1543) o una palabra.");
-    } else {
-      console.log("✅ El Key ID tiene un tamaño normal.");
-    }
+    // Debug
+    console.log("🔐 Credenciales cargadas:");
+    console.log(`- User: ${API_USER}`);
+    console.log(`- Key (Longitud): ${KEY_ID?.length} caracteres`); // Debería ser 24 aprox
 
     if (!API_USER || !API_PASSWORD || !KEY_ID) {
       return res.status(500).json({ message: "Faltan credenciales en Render." });
     }
 
-    // 2. PAYLOAD
+    // 2. PAYLOAD (AQUÍ ESTÁ LA CORRECCIÓN CLAVE 👇)
     const authString = Buffer.from(`${API_USER}:${API_PASSWORD}`).toString('base64');
     const orderRef = `ORD-${Date.now()}`; 
 
     const payload = {
-      key_id: KEY_ID,
+      key: KEY_ID,   // 👈 ANTES DECÍA 'key_id'. AHORA ES 'key'. ¡ESTO ES VITAL!
       amount: amount,
       currency: "CRC",
       bill_to_first_name: firstName,
@@ -52,48 +47,44 @@ router.post('/create-link', async (req, res) => {
       cancel_url: `${FRONTEND}/checkout?status=cancel`
     };
 
-    // 3. INTENTO TRIPLE (Producción -> Legacy -> Sandbox)
+    // 3. INTENTO DE CONEXIÓN
+    // Usamos api.tilopay.com que es la estándar para Prod
+    const url = 'https://api.tilopay.com/api/v1/process';
     
-    // URLS POSIBLES
-    const urls = [
-      'https://api.tilopay.com/api/v1/process',      // Opción A: API Nueva
-      'https://app.tilopay.com/api/v1/process',      // Opción B: API Legacy
-      'https://sandbox.tilopay.com/api/v1/process'   // Opción C: Modo Pruebas
-    ];
+    console.log(`📡 Conectando a TiloPay con KEY: ${KEY_ID.substring(0, 5)}...`);
 
-    let lastError = null;
+    try {
+      const response = await axios.post(url, payload, {
+        headers: { 
+          'Authorization': `Basic ${authString}`, 
+          'Content-Type': 'application/json' 
+        }
+      });
+      
+      console.log("✅ ¡LINK GENERADO EXITOSAMENTE!", response.data.url);
+      return res.json({ url: response.data.url });
 
-    // Probamos las 3 URLs una por una hasta que una funcione
-    for (const url of urls) {
+    } catch (error) {
+      // Si falla, intentamos con la URL alternativa (app.tilopay.com)
+      console.warn("⚠️ Falló api.tilopay.com, probando app.tilopay.com...");
       try {
-        console.log(`📡 Probando conexión con: ${url} ...`);
-        const response = await axios.post(url, payload, {
+        const responseBackup = await axios.post('https://app.tilopay.com/api/v1/process', payload, {
           headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' }
         });
-        
-        if (response.data && response.data.url) {
-          console.log("✅ ¡CONEXIÓN EXITOSA! Link generado:", response.data.url);
-          return res.json({ url: response.data.url }); // ¡ÉXITO!
-        }
-      } catch (error) {
-        console.warn(`❌ Falló ${url} (Status: ${error.response?.status})`);
-        lastError = error;
-        // Si falla, el ciclo 'for' continuará con la siguiente URL automáticamente
+        console.log("✅ ¡LINK GENERADO (Backup)!", responseBackup.data.url);
+        return res.json({ url: responseBackup.data.url });
+      } catch (backupError) {
+        console.error("❌ ERROR FINAL:", JSON.stringify(backupError.response?.data || backupError.message));
+        res.status(500).json({ 
+          message: "Error conectando con TiloPay", 
+          detalle: backupError.response?.data 
+        });
       }
     }
 
-    // Si llegamos aquí, fallaron las 3 URLs
-    const errorData = lastError?.response?.data || {};
-    console.error("🔥 TODAS LAS CONEXIONES FALLARON. Último error:", JSON.stringify(errorData, null, 2));
-
-    res.status(500).json({ 
-      message: "Error de Credenciales o Configuración",
-      detalle: "Revisa en los logs si tu Key ID es correcto. TiloPay rechazó la conexión."
-    });
-
   } catch (error) {
-    console.error("❌ Error Crítico:", error.message);
-    res.status(500).json({ message: "Error interno del servidor" });
+    console.error("❌ Error Servidor:", error.message);
+    res.status(500).json({ message: "Error interno" });
   }
 });
 
