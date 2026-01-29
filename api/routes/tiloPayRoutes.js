@@ -15,27 +15,33 @@ router.post('/create-link', async (req, res) => {
     const firstName = nameParts[0];
     const lastName = nameParts.slice(1).join(" ") || "General";
 
-    // 1. CREDENCIALES
+    // 1. CREDENCIALES (Tal cual las tienes ahora en Render)
+    // TILOPAY_USER = "aq7i1C" (El corto)
+    // TILOPAY_PASSWORD = "76aect..." (La contraseña)
+    // TILOPAY_API_KEY = "5400-8203..." (La Larga, ¡déjala así!)
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
-    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); // Aquí vendrá la LLAVE LARGA (5400...)
+    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); 
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    // Debug
-    console.log("🔐 Credenciales cargadas:");
+    console.log("🔐 Credenciales:");
     console.log(`- User: ${API_USER}`);
-    console.log(`- Key (Longitud): ${KEY_ID?.length} caracteres`); // Debería ser 24 aprox
+    console.log(`- Key: ${KEY_ID?.substring(0, 5)}... (Largo: ${KEY_ID?.length})`);
 
     if (!API_USER || !API_PASSWORD || !KEY_ID) {
       return res.status(500).json({ message: "Faltan credenciales en Render." });
     }
 
-    // 2. PAYLOAD (AQUÍ ESTÁ LA CORRECCIÓN CLAVE 👇)
+    // 2. PAYLOAD BLINDADO 🛡️
     const authString = Buffer.from(`${API_USER}:${API_PASSWORD}`).toString('base64');
     const orderRef = `ORD-${Date.now()}`; 
 
     const payload = {
-      key: KEY_ID,   // 👈 ANTES DECÍA 'key_id'. AHORA ES 'key'. ¡ESTO ES VITAL!
+      // TRUCO DE ORO: Enviamos las dos variantes para asegurar compatibilidad
+      key: KEY_ID,      
+      key_id: KEY_ID,   
+      apiuser: API_USER, // 👈 ESTO ES LO QUE FALTABA (A veces TiloPay lo exige en el cuerpo)
+      
       amount: amount,
       currency: "CRC",
       bill_to_first_name: firstName,
@@ -48,36 +54,39 @@ router.post('/create-link', async (req, res) => {
     };
 
     // 3. INTENTO DE CONEXIÓN
-    // Usamos api.tilopay.com que es la estándar para Prod
-    const url = 'https://api.tilopay.com/api/v1/process';
-    
-    console.log(`📡 Conectando a TiloPay con KEY: ${KEY_ID.substring(0, 5)}...`);
+    // Probamos primero app.tilopay.com que suele ser más estable para cuentas "Api"
+    console.log("📡 Conectando a app.tilopay.com...");
 
     try {
-      const response = await axios.post(url, payload, {
-        headers: { 
-          'Authorization': `Basic ${authString}`, 
-          'Content-Type': 'application/json' 
-        }
-      });
+      const response = await axios.post(
+        'https://app.tilopay.com/api/v1/process', 
+        payload,
+        { headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' } }
+      );
       
-      console.log("✅ ¡LINK GENERADO EXITOSAMENTE!", response.data.url);
+      console.log("✅ ¡LINK GENERADO!", response.data.url);
       return res.json({ url: response.data.url });
 
     } catch (error) {
-      // Si falla, intentamos con la URL alternativa (app.tilopay.com)
-      console.warn("⚠️ Falló api.tilopay.com, probando app.tilopay.com...");
+      // Si falla, intentamos api.tilopay.com
+      console.warn(`⚠️ Falló app.tilopay.com (${error.response?.status}). Probando api.tilopay.com...`);
+      
       try {
-        const responseBackup = await axios.post('https://app.tilopay.com/api/v1/process', payload, {
-          headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' }
-        });
+        const responseBackup = await axios.post(
+          'https://api.tilopay.com/api/v1/process',
+          payload,
+          { headers: { 'Authorization': `Basic ${authString}`, 'Content-Type': 'application/json' } }
+        );
         console.log("✅ ¡LINK GENERADO (Backup)!", responseBackup.data.url);
         return res.json({ url: responseBackup.data.url });
-      } catch (backupError) {
-        console.error("❌ ERROR FINAL:", JSON.stringify(backupError.response?.data || backupError.message));
+
+      } catch (finalError) {
+        const errData = finalError.response?.data || {};
+        console.error("❌ ERROR FINAL TILOPAY:", JSON.stringify(errData, null, 2));
+        
         res.status(500).json({ 
           message: "Error conectando con TiloPay", 
-          detalle: backupError.response?.data 
+          detalle: errData 
         });
       }
     }
