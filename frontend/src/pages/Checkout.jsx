@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { useNavigate, useLocation } from 'react-router-dom'; // 👈 Agregamos useLocation
-import { FaArrowLeft, FaLock, FaMapMarkerAlt, FaTruck, FaTrash, FaWhatsapp, FaCreditCard } from 'react-icons/fa';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { FaArrowLeft, FaMapMarkerAlt, FaTruck, FaTrash, FaWhatsapp, FaCreditCard } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
 // 🧠 CEREBRO DEL GAM
@@ -16,9 +16,9 @@ const GAM_CANTONES = {
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 
 export default function Checkout() {
-  const { cart, cartTotal, removeFromCart, clearCart } = useCart(); // 👈 Traemos clearCart
+  const { cart, cartTotal, removeFromCart, clearCart } = useCart();
   const navigate = useNavigate();
-  const location = useLocation(); // 👈 Para leer la URL al volver de TiloPay
+  const location = useLocation();
   
   // Estados de Ubicación
   const [provincias, setProvincias] = useState({});
@@ -35,7 +35,7 @@ export default function Checkout() {
   const [metodoPago, setMetodoPago] = useState("tarjeta");
   
   const [loadingPay, setLoadingPay] = useState(false);
-  const [verifyingPayment, setVerifyingPayment] = useState(false); // 👈 Nuevo estado para la pantalla de carga
+  const [verifyingPayment, setVerifyingPayment] = useState(false);
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -54,7 +54,6 @@ export default function Checkout() {
       confirmarPagoBackend(orderId);
     } else if (status === "cancel") {
       toast.error("El pago fue cancelado.");
-      // Limpiamos la URL para que no salga el error si recarga
       navigate('/checkout', { replace: true });
     }
   }, [location]);
@@ -72,9 +71,12 @@ export default function Checkout() {
       const data = await res.json();
 
       if (data.success || data.status === 'paid') {
-        toast.success("¡Pago exitoso! Tu orden ha sido procesada.");
+        toast.success("¡Pago exitoso! Te enviamos un correo de confirmación.");
         clearCart(); // 🗑️ Limpiamos carrito visual
-        navigate("/pedidos"); // 🚀 Mandamos al usuario a ver sus pedidos
+        
+        // --- CAMBIO AQUÍ: REDIRIGIR A PANTALLA DE CONFIRMACIÓN ---
+        navigate("/confirmacion", { state: { orderId: orderId } });
+        // ---------------------------------------------------------
       } else {
         toast.warning("Pago recibido, pero hubo un error actualizando el estado.");
       }
@@ -215,13 +217,13 @@ export default function Checkout() {
             direccion: `${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}. ${formData.direccionExacta}`
           },
           productos: cart.map(item => ({
-            _id: item._id || item.id, // Aseguramos mandar el ID
+            _id: item._id || item.id,
             nombre: item.name,
             precio: item.discountPrice || item.price,
             cantidad: item.quantity,
-            tallaSeleccionada: item.selectedSize, // Nombre consistente con Backend
+            tallaSeleccionada: item.selectedSize,
             version: item.type,
-            imgs: [item.imageSrc] // Mandamos la imagen para guardarla
+            imgs: [item.imageSrc]
           })),
           envio: {
             metodo: envioSeleccionado.nombre,

@@ -2,6 +2,8 @@ import express from 'express';
 import axios from 'axios';
 import Order from '../models/Order.js'; 
 import Product from '../models/Product.js'; 
+// 👇 1. IMPORTAMOS EL SERVICIO DE CORREO (Asegúrate de crear este archivo luego)
+import { enviarCorreoConfirmacion } from '../utils/mailer.js'; 
 
 const router = express.Router();
 
@@ -32,10 +34,7 @@ router.post('/create-link', async (req, res) => {
                 product_id: prod._id || prod.id, 
                 name: prod.nombre || prod.title,
                 size: prod.tallaSeleccionada || "Estándar",
-                
-                // 👇 CORREGIDO: Usamos 'version' porque 'type' es palabra reservada
                 version: prod.version || "",             
-                
                 quantity: prod.cantidad || 1,
                 price: prod.precio,
                 image: prod.imgs ? prod.imgs[0] : "" 
@@ -72,6 +71,7 @@ router.post('/create-link', async (req, res) => {
       key: API_KEY, 
       amount: total,
       currency: "CRC",
+      // 👇 Aseguramos que redirija con status=success
       redirect: `${FRONTEND}/checkout?status=success&order=${orderRef}`,
       
       billToFirstName: nameParts[0],
@@ -114,7 +114,6 @@ router.post('/confirm-payment', async (req, res) => {
     for (const item of order.items) {
       if (item.product_id) {
         const product = await Product.findById(item.product_id);
-        // Validamos que exista stock para esa talla antes de restar
         if (product && product.stock && product.stock[item.size] !== undefined) {
              const currentStock = parseInt(product.stock[item.size] || 0);
              product.stock[item.size] = Math.max(0, currentStock - item.quantity);
@@ -127,8 +126,18 @@ router.post('/confirm-payment', async (req, res) => {
     // Marcar como pagado
     order.status = 'paid';
     await order.save();
+
+    // 👇 2. ENVIAR CORREO DE CONFIRMACIÓN
+    try {
+      console.log(`📧 Intentando enviar correo a: ${order.customer.email}`);
+      await enviarCorreoConfirmacion(order);
+      console.log("✅ Correo enviado con éxito.");
+    } catch (emailError) {
+      console.error("⚠️ Error enviando correo (pero el pago sí pasó):", emailError);
+      // No hacemos return error, porque el pago YA se procesó. Solo logueamos el error.
+    }
     
-    res.json({ success: true, message: "Pago confirmado y stock actualizado" });
+    res.json({ success: true, message: "Pago confirmado, stock actualizado y correo enviado" });
 
   } catch (error) { 
     console.error("Error confirmando pago:", error);
