@@ -5,12 +5,12 @@ import Product from '../models/Product.js';
 
 const router = express.Router();
 
-// --- RUTA 1: CREAR LINK DE PAGO ---
+// --- RUTA 1: CREAR LINK DE PAGO (Y guardar pedido) ---
 router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // Credenciales
+    // 1. CREDENCIALES
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
     const API_KEY = process.env.TILOPAY_API_KEY?.trim(); 
@@ -18,21 +18,24 @@ router.post('/create-link', async (req, res) => {
 
     const orderRef = `ORD-${Date.now()}`; 
 
-    // --- GUARDAR DATOS COMPLETOS ---
+    // --- 2. GUARDAR DATOS EN MONGO DB ---
     try {
         const newOrder = new Order({
             orderId: orderRef,
             customer: {
                 name: cliente?.nombre || "Cliente",
                 email: cliente?.correo || "sin_correo@email.com",
-                phone: cliente?.telefono || "",       // 👈 GUARDAMOS TELÉFONO
-                address: cliente?.direccion || ""     // 👈 GUARDAMOS DIRECCIÓN
+                phone: cliente?.telefono || "",       
+                address: cliente?.direccion || ""     
             },
             items: productos.map(prod => ({
                 product_id: prod._id || prod.id, 
                 name: prod.nombre || prod.title,
                 size: prod.tallaSeleccionada || "Estándar",
-                type: prod.version || "",             // 👈 GUARDAMOS VERSIÓN
+                
+                // 👇 CORREGIDO: Usamos 'version' porque 'type' es palabra reservada
+                version: prod.version || "",             
+                
                 quantity: prod.cantidad || 1,
                 price: prod.precio,
                 image: prod.imgs ? prod.imgs[0] : "" 
@@ -42,14 +45,14 @@ router.post('/create-link', async (req, res) => {
         });
 
         await newOrder.save();
-        console.log(`📝 Pedido ${orderRef} guardado con datos completos.`);
+        console.log(`📝 Pedido ${orderRef} guardado correctamente (Pendiente).`);
 
     } catch (dbError) {
         console.error("❌ Error guardando pedido:", dbError);
-        return res.status(500).json({ message: "Error al crear el pedido" });
+        return res.status(500).json({ message: "Error al crear el pedido en base de datos" });
     }
 
-    // --- LOGIN TILOPAY ---
+    // --- 3. LOGIN TILOPAY ---
     if (!API_USER || !API_PASSWORD || !API_KEY) return res.status(500).json({ message: "Faltan credenciales" });
 
     let token = "";
@@ -61,7 +64,7 @@ router.post('/create-link', async (req, res) => {
       token = loginResponse.data.access_token || loginResponse.data.token || loginResponse.data;
     } catch (e) { return res.status(401).json({message: "Error Login TiloPay"}); }
 
-    // --- PAYLOAD TILOPAY ---
+    // --- 4. CONFIGURAR PAYLOAD TILOPAY ---
     const fullName = cliente?.nombre || "Cliente General";
     const nameParts = fullName.trim().split(" ");
     
@@ -75,7 +78,7 @@ router.post('/create-link', async (req, res) => {
       billToLastName: nameParts.slice(1).join(" ") || "Cliente",
       billToEmail: cliente?.correo || "cliente@email.com",
       billToTelephone: cliente?.telefono || "88888888",
-      billToAddress: cliente?.direccion || "San Jose", // Enviamos la dirección real a TiloPay también
+      billToAddress: cliente?.direccion || "San Jose", 
       billToCity: "San Jose",
       billToState: "San Jose",
       billToZipPostCode: "10101",
@@ -85,18 +88,20 @@ router.post('/create-link', async (req, res) => {
       description: `Compra FutStore - ${productos?.length || 1} items`
     };
     
+    // --- 5. ENVIAR A TILOPAY ---
     try {
         const linkResponse = await axios.post('https://app.tilopay.com/api/v1/processPayment', payload, { 
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json', 'Accept': 'application/json' } 
         });
         return res.json({ url: linkResponse.data.url });
     } catch (appError) {
+        console.error("❌ Error TiloPay:", JSON.stringify(appError.response?.data));
         res.status(500).json({ message: "Error TiloPay", detalle: appError.response?.data });
     }
   } catch (error) { res.status(500).json({ message: "Error interno" }); }
 });
 
-// --- RUTA 2: CONFIRMAR PAGO (Igual que antes) ---
+// --- RUTA 2: CONFIRMAR PAGO Y RESTAR STOCK ---
 router.post('/confirm-payment', async (req, res) => {
   try {
     const { orderId } = req.body;
@@ -105,19 +110,30 @@ router.post('/confirm-payment', async (req, res) => {
 
     if (order.status === 'paid') return res.json({ message: "Ya procesada", status: 'paid' });
 
+    // Restar Stock
     for (const item of order.items) {
       if (item.product_id) {
         const product = await Product.findById(item.product_id);
-        if (product && product.stock[item.size] !== undefined) {
-             product.stock[item.size] = Math.max(0, parseInt(product.stock[item.size] || 0) - item.quantity);
+        // Validamos que exista stock para esa talla antes de restar
+        if (product && product.stock && product.stock[item.size] !== undefined) {
+             const currentStock = parseInt(product.stock[item.size] || 0);
+             product.stock[item.size] = Math.max(0, currentStock - item.quantity);
              await product.save();
+             console.log(`📉 Stock actualizado: ${product.name} (${item.size})`);
         }
       }
     }
+    
+    // Marcar como pagado
     order.status = 'paid';
     await order.save();
-    res.json({ success: true });
-  } catch (error) { res.status(500).json({ message: "Error" }); }
+    
+    res.json({ success: true, message: "Pago confirmado y stock actualizado" });
+
+  } catch (error) { 
+    console.error("Error confirmando pago:", error);
+    res.status(500).json({ message: "Error interno" }); 
+  }
 });
 
 export default router;

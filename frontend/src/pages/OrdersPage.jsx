@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaBoxOpen, FaClock, FaCheckCircle, FaMapMarkerAlt, FaPhone, FaEnvelope, FaTshirt, FaTrash } from 'react-icons/fa';
-import { toast } from 'react-toastify'; // Usamos toast para avisar
+import { toast } from 'react-toastify'; 
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://machoteprincipal.onrender.com/api';
 
@@ -27,19 +27,14 @@ const OrdersPage = () => {
 
   // 👇 FUNCIÓN PARA ELIMINAR
   const handleDeleteOrder = async (orderId) => {
-    // 1. Preguntamos por seguridad
     if (!window.confirm("¿Estás seguro de que quieres ELIMINAR este pedido permanentemente?")) {
       return;
     }
 
     try {
-      // 2. Llamamos al backend
       await axios.delete(`${API_URL}/orders/${orderId}`);
-      
-      // 3. Borramos de la lista visualmente sin recargar
       setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
       toast.success("Pedido eliminado correctamente 🗑️");
-
     } catch (error) {
       console.error("Error eliminando:", error);
       toast.error("No se pudo eliminar el pedido.");
@@ -102,7 +97,7 @@ const OrdersPage = () => {
               }`}>
                 
                 {/* 1. CABECERA DEL PEDIDO */}
-                <div className="bg-[#111] px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pr-16"> {/* pr-16 para dar espacio al botón borrar */}
+                <div className="bg-[#111] px-6 py-4 flex flex-col md:flex-row justify-between items-start md:items-center border-b border-gray-800 pr-16">
                   <div className="flex flex-col">
                     <span className="text-xs text-gray-500 uppercase tracking-widest font-bold">Referencia de Orden</span>
                     <span className="text-[#D4AF37] font-mono text-lg font-bold">{order.orderId}</span>
@@ -117,7 +112,7 @@ const OrdersPage = () => {
                      <p className="text-2xl font-black text-white">₡ {order.total?.toLocaleString()}</p>
                   </div>
 
-                  {/* 🗑️ BOTÓN DE ELIMINAR (FLOTANTE ARRIBA A LA DERECHA) */}
+                  {/* 🗑️ BOTÓN DE ELIMINAR */}
                   <button 
                     onClick={() => handleDeleteOrder(order._id)}
                     className="absolute top-4 right-4 bg-gray-900 hover:bg-red-600 text-gray-400 hover:text-white p-3 rounded-full transition shadow-lg border border-gray-700 hover:border-red-500 z-10"
@@ -180,11 +175,14 @@ const OrdersPage = () => {
                           
                           <div className="flex-1">
                             <p className="font-bold text-white text-sm">{item.name}</p>
-                            {item.type && (
+                            
+                            {/* 👇 AQUÍ ESTÁ EL CAMBIO: Usamos item.version en vez de item.type */}
+                            {item.version && (
                               <span className="inline-block bg-[#D4AF37] text-black text-[10px] font-bold px-1.5 rounded my-1">
-                                {item.type}
+                                {item.version}
                               </span>
                             )}
+
                             <div className="flex gap-4 text-xs text-gray-400 mt-1">
                               <p>Talla: <span className="text-white font-bold">{item.size}</span></p>
                               {item.color && <p>Color: {item.color}</p>}
