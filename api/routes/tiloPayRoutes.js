@@ -7,48 +7,40 @@ router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // --- 1. CREDENCIALES (Desde Render) ---
-    // Asegúrate de tener en Render los datos de la CUENTA NUEVA:
-    // TILOPAY_USER: "nlhoKf" (Tu usuario corto)
-    // TILOPAY_PASSWORD: (Tu contraseña api)
-    // TILOPAY_API_KEY: (Aquí puedes dejar la larga 5929... o la corta, no importa, usaremos User/Pass)
-    
+    // --- 1. CREDENCIALES ---
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
+    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); // <--- AHORA USAMOS ESTO PARA LA TIENDA
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    console.log(`🔐 Iniciando proceso para usuario: ${API_USER}`);
+    console.log(`🔐 Procesando para usuario: ${API_USER}`);
 
-    if (!API_USER || !API_PASSWORD) {
+    if (!API_USER || !API_PASSWORD || !KEY_ID) {
       return res.status(500).json({ message: "Faltan credenciales en Render." });
     }
 
-    // --- 2. PASO 1: LOGIN (Obtener Token) ---
-    // Según la documentación que me pasaste
+    // --- 2. LOGIN (Obtener Token) ---
     let token = "";
     try {
-      console.log("📡 1. Solicitando Token de acceso (Login)...");
+      console.log("📡 1. Solicitando Token (Login)...");
       const loginResponse = await axios.post('https://app.tilopay.com/api/v1/login', {
         apiuser: API_USER,
         password: API_PASSWORD
       });
-
-      // A veces el token viene en 'access_token' o dentro de 'data'
       token = loginResponse.data.access_token || loginResponse.data.token || loginResponse.data;
       console.log("✅ Token recibido correctamente.");
-
     } catch (loginError) {
-      console.error("❌ Falló el Login:", loginError.response?.data || loginError.message);
-      return res.status(401).json({ message: "Error de autenticación con TiloPay", detalle: loginError.response?.data });
+      console.error("❌ Falló Login:", loginError.response?.data || loginError.message);
+      return res.status(401).json({ message: "Error de autenticación", detalle: loginError.response?.data });
     }
 
-    // --- 3. PASO 2: CREAR ENLACE ---
+    // --- 3. CREAR ENLACE ---
     const orderRef = `ORD-${Date.now()}`; 
     const fullName = cliente?.nombre || "Cliente";
     const nameParts = fullName.split(" ");
 
     const payload = {
-      key: API_USER, // Usamos el usuario como Key
+      key: KEY_ID, // <--- AQUÍ USAMOS LA LLAVE LARGA
       amount: total,
       currency: "CRC",
       bill_to_first_name: nameParts[0],
@@ -60,31 +52,29 @@ router.post('/create-link', async (req, res) => {
       cancel_url: `${FRONTEND}/checkout?status=cancel`
     };
 
-    console.log("📡 2. Creando enlace de pago...");
+    console.log(`📡 2. Creando pago para tienda: ${KEY_ID.substring(0,5)}...`);
     
-    // Usamos el Token en los Headers (Bearer Auth)
-    const linkResponse = await axios.post(
-      'https://app.tilopay.com/api/v1/process',
-      payload,
-      { 
-        headers: { 
-          'Authorization': `Bearer ${token}`, 
-          'Content-Type': 'application/json' 
-        } 
-      }
-    );
-
-    console.log("✅ ¡LINK GENERADO EXITOSAMENTE!", linkResponse.data.url);
-    return res.json({ url: linkResponse.data.url });
+    // Intentamos en APP (misma URL del login)
+    try {
+        const linkResponse = await axios.post('https://app.tilopay.com/api/v1/process', payload, { 
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } 
+        });
+        console.log("✅ LINK GENERADO:", linkResponse.data.url);
+        return res.json({ url: linkResponse.data.url });
+    } catch (appError) {
+        // Si falla app.tilopay, probamos api.tilopay (A veces el process está en otro server)
+        console.warn("⚠️ Falló app.tilopay, probando api.tilopay...");
+        const linkResponseBackup = await axios.post('https://api.tilopay.com/api/v1/process', payload, { 
+            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } 
+        });
+        console.log("✅ LINK GENERADO (Backup):", linkResponseBackup.data.url);
+        return res.json({ url: linkResponseBackup.data.url });
+    }
 
   } catch (error) {
     const errorData = error.response?.data || error.message;
     console.error("❌ Error Final:", JSON.stringify(errorData, null, 2));
-    
-    res.status(500).json({ 
-      message: "Error al generar el pago", 
-      detalle: errorData 
-    });
+    res.status(500).json({ message: "Error al generar el pago", detalle: errorData });
   }
 });
 
