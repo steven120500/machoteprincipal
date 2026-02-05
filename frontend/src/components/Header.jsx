@@ -1,5 +1,5 @@
 import logo from "../assets/logo.png";
-import { FaBars, FaTimes, FaShoppingCart, FaUser } from "react-icons/fa"; // 👈 Agregamos FaUser
+import { FaBars, FaTimes, FaShoppingCart, FaUser, FaBoxOpen } from "react-icons/fa"; // 👈 Agregué FaBoxOpen para el ícono
 import { LiaRulerSolid } from "react-icons/lia";
 import { FiPhoneCall } from "react-icons/fi";
 import { useState } from "react";
@@ -34,7 +34,6 @@ export default function Header({
     }
   };
 
-  // 👇 Función para sacar las iniciales (Ej: "Steven Corrales" -> "SC")
   const getInitials = (name) => {
     if (!name) return "";
     const parts = name.trim().split(" ");
@@ -71,10 +70,8 @@ export default function Header({
           </button>
         </div>
 
-        {/* 🔹 DERECHA: CARRITO Y MENÚ DE USUARIO */}
+        {/* 🔹 DERECHA */}
         <div className="flex items-center gap-3">
-          
-          {/* 🛒 BOTÓN CARRITO */}
           <button 
             onClick={handleCartClick} 
             className="relative bg-black text-white p-2 rounded-full shadow-lg hover:bg-gray-800 transition"
@@ -87,26 +84,23 @@ export default function Header({
             )}
           </button>
 
-          {/* 👤 BOTÓN PERFIL / MENÚ (Modificado) */}
           <button
             onClick={() => setSidebarOpen(true)}
             className="rounded-full bg-black p-2 w-10 h-10 flex items-center justify-center shadow-md hover:bg-gray-800 text-white transition-all border border-gray-700"
             title={user ? user.username : "Menú"}
           >
             {user ? (
-              // Si hay usuario: Mostramos iniciales
               <span className="font-bold text-sm tracking-tighter">
                 {getInitials(user.username || user.name || "US")}
               </span>
             ) : (
-              // Si NO hay usuario: Mostramos icono de persona
               <FaUser size={18} />
             )}
           </button>
         </div>
       </div>
 
-      {/* 🔸 SIDEBAR (Menú lateral) */}
+      {/* 🔸 SIDEBAR */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-[100] bg-black/40" onClick={() => setSidebarOpen(false)}>
           <div className="fixed top-0 right-0 h-full w-72 sm:w-80 shadow-xl" onClick={(e) => e.stopPropagation()}>
@@ -126,6 +120,16 @@ export default function Header({
                   {isSuperUser && <button onClick={() => { setShowUserListModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg">Ver usuarios</button>}
                   {canSeeHistory && <button onClick={() => { setShowHistoryModal(true); setSidebarOpen(false); }} className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg">Historial</button>}
                   
+                  {/* 👇 NUEVO BOTÓN PEDIDOS (Solo si es SuperUser o tiene permisos) */}
+                  {(isSuperUser || canSeeHistory) && (
+                    <button 
+                      onClick={() => { navigate('/pedidos'); setSidebarOpen(false); }} 
+                      className="w-full fondo-plateado text-left mb-3 px-4 py-2 rounded-lg flex items-center gap-2"
+                    >
+                      <FaBoxOpen /> Pedidos
+                    </button>
+                  )}
+
                   <button onClick={() => { onLogout(); setSidebarOpen(false); }} className="w-full text-left mt-4 px-4 py-3 rounded-lg font-bold text-red-500 hover:bg-red-900/20 border border-red-900/50 transition">
                     Cerrar sesión
                   </button>

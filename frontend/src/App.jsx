@@ -31,6 +31,7 @@ import "./index.css";
 import ResetPassword from "./pages/ResetPassword";
 import ProductDetail from "./pages/ProductDetail.jsx";
 import Checkout from "./pages/Checkout.jsx"; 
+import OrdersPage from "./pages/OrdersPage.jsx"; // 👈 NUEVA IMPORTACIÓN
 
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 const GOLD = "#9E8F91"
@@ -178,6 +179,7 @@ export default function App() {
           <Route path="/reset-password/:token" element={<ResetPassword />} />
           <Route path="/product/:id" element={<ProductDetail user={user} onUpdate={handleProductUpdate} />} />
           <Route path="/checkout" element={<Checkout />} />
+          <Route path="/pedidos" element={<OrdersPage />} /> {/* 👈 NUEVA RUTA */}
           
           <Route path="/" element={
             <>
