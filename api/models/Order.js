@@ -6,8 +6,8 @@ const orderSchema = new mongoose.Schema({
   customer: {
     name: String,
     email: String,
-    phone: String,      // 👈 NUEVO: Teléfono
-    address: String     // 👈 NUEVO: Dirección Completa
+    phone: String,
+    address: String
   },
 
   items: [
@@ -16,7 +16,7 @@ const orderSchema = new mongoose.Schema({
       name: String,
       size: String,
       color: String,
-      type: String,     // 👈 NUEVO: Versión (Jugador/Fan/Retro)
+      version: String,  // 👈 CORREGIDO: Usamos 'version' en lugar de 'type'
       quantity: { type: Number, default: 1 },
       price: Number,
       image: String 
