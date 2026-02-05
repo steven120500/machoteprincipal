@@ -7,20 +7,19 @@ router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // Credenciales
+    // 1. CREDENCIALES
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
-    const API_KEY = process.env.TILOPAY_API_KEY?.trim(); // Aquí usaremos la LLAVE LARGA
+    const API_KEY = process.env.TILOPAY_API_KEY?.trim(); // Aquí va la LLAVE LARGA
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    console.log(`🚀 INICIANDO PAGO (VERSIÓN MODERNA)`);
-    console.log(`👤 Usuario: ${API_USER}`);
+    console.log(`🚀 INICIANDO PAGO (ENDPOINT CORRECTO: processPayment)`);
 
     if (!API_USER || !API_PASSWORD || !API_KEY) {
       return res.status(500).json({ message: "Faltan credenciales en Render." });
     }
 
-    // --- PASO 1: LOGIN (Token) ---
+    // 2. LOGIN (Obtener Token) - ESTO YA FUNCIONA
     let token = "";
     try {
       const loginResponse = await axios.post('https://app.tilopay.com/api/v1/login', {
@@ -28,54 +27,63 @@ router.post('/create-link', async (req, res) => {
         password: API_PASSWORD
       });
       token = loginResponse.data.access_token || loginResponse.data.token || loginResponse.data;
-      console.log("✅ Token obtenido correctamente.");
-    } catch (loginError) {
-      console.error("❌ Falló Login:", loginError.response?.data);
-      return res.status(401).json({ message: "Error Login", detalle: loginError.response?.data });
-    }
+      console.log("✅ Token obtenido.");
+    } catch (e) { return res.status(401).json({message: "Error Login"}); }
 
-    // --- PASO 2: CREAR LINK (URL NUEVA) ---
+    // 3. CREAR PAGO (Configuración según tu documentación)
     const orderRef = `ORD-${Date.now()}`; 
-    const fullName = cliente?.nombre || "Cliente";
-    const nameParts = fullName.split(" ");
+    const fullName = cliente?.nombre || "Cliente General";
+    // Separamos nombre y apellido porque TiloPay los pide aparte
+    const nameParts = fullName.trim().split(" ");
+    const firstName = nameParts[0];
+    const lastName = nameParts.slice(1).join(" ") || "Cliente";
 
-    // En la versión nueva, a veces piden 'apiuser' en el cuerpo en lugar de 'key'
     const payload = {
-      apiuser: API_USER,  // <--- IMPORTANTE: Tu usuario corto
-      key: API_KEY,       // <--- Tu llave larga
+      // Campos obligatorios según tu captura de Postman
+      key: API_KEY, // La llave larga
       amount: total,
       currency: "CRC",
-      bill_to_first_name: nameParts[0],
-      bill_to_last_name: nameParts.slice(1).join(" ") || "General",
-      bill_to_email: cliente?.correo,
-      order_id: orderRef,
-      description: `Compra FutStore - ${productos?.length || 1} items`,
-      callback_url: `${FRONTEND}/checkout?status=success`, // A veces se llama callback_url
-      redirect_url: `${FRONTEND}/checkout?status=success`,
-      cancel_url: `${FRONTEND}/checkout?status=cancel`
+      redirect: `${FRONTEND}/checkout?status=success`, // Según docs se llama 'redirect'
+      
+      // Datos del Cliente (Formato CamelCase como en la foto)
+      billToFirstName: firstName,
+      billToLastName: lastName,
+      billToEmail: cliente?.correo || "cliente@email.com",
+      billToTelephone: "88888888", // Dato obligatorio, ponemos uno default si no hay
+      billToAddress: "San Jose, Costa Rica", // Dato obligatorio
+      billToCity: "San Jose", // Dato obligatorio
+      billToState: "San Jose", // Dato obligatorio
+      billToZipPostCode: "10101", // Dato obligatorio
+      billToCountry: "CR", // Dato obligatorio (ISO código de Costa Rica)
+      
+      // Extras
+      orderNumber: orderRef,
+      description: `Compra FutStore - ${productos?.length || 1} items`
     };
 
-    console.log(`📡 Enviando a /payment-link...`);
+    console.log(`📡 Enviando a /processPayment con Key: ${API_KEY.substring(0,5)}...`);
     
     try {
-        // CAMBIO DE URL: Usamos payment-link en vez de process
-        const linkResponse = await axios.post('https://app.tilopay.com/api/v1/payment-link', payload, { 
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } 
+        // CAMBIO CRUCIAL: La URL exacta de tu captura
+        const linkResponse = await axios.post('https://app.tilopay.com/api/v1/processPayment', payload, { 
+            headers: { 
+              'Authorization': `Bearer ${token}`, 
+              'Content-Type': 'application/json',
+              'Accept': 'application/json'
+            } 
         });
         
-        // La respuesta puede venir en .url o .link
-        const finalUrl = linkResponse.data.url || linkResponse.data.link || linkResponse.data.payment_link;
-        console.log("✅ ¡LINK NUEVO GENERADO!:", finalUrl);
-        return res.json({ url: finalUrl });
+        console.log("✅ RESPUESTA TILOPAY:", JSON.stringify(linkResponse.data));
+        
+        // Según docs, devuelve { url: "..." }
+        return res.json({ url: linkResponse.data.url });
 
     } catch (appError) {
-        // Si falla, imprimimos el error detallado
         console.error("❌ Error TiloPay:", JSON.stringify(appError.response?.data || appError.message));
         res.status(500).json({ message: "Error TiloPay", detalle: appError.response?.data });
     }
 
   } catch (error) {
-    console.error("❌ Error General:", error.message);
     res.status(500).json({ message: "Error interno" });
   }
 });
