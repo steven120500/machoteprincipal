@@ -7,40 +7,61 @@ router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // --- 1. CREDENCIALES ---
+    // Leemos las credenciales
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
-    const KEY_ID = process.env.TILOPAY_API_KEY?.trim(); // <--- AHORA USAMOS ESTO PARA LA TIENDA
+    let KEY_ID = process.env.TILOPAY_API_KEY?.trim(); 
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    console.log(`🔐 Procesando para usuario: ${API_USER}`);
+    console.log(`🔐 INICIANDO PROCESO DETECTIVE 🕵️`);
+    console.log(`- Usuario: ${API_USER}`);
+    console.log(`- Llave actual en Render: ${KEY_ID}`);
 
-    if (!API_USER || !API_PASSWORD || !KEY_ID) {
+    if (!API_USER || !API_PASSWORD) {
       return res.status(500).json({ message: "Faltan credenciales en Render." });
     }
 
-    // --- 2. LOGIN (Obtener Token) ---
+    // --- PASO 1: LOGIN Y RASTREO ---
     let token = "";
     try {
-      console.log("📡 1. Solicitando Token (Login)...");
+      console.log("📡 Solicitando Token y Datos...");
       const loginResponse = await axios.post('https://app.tilopay.com/api/v1/login', {
         apiuser: API_USER,
         password: API_PASSWORD
       });
-      token = loginResponse.data.access_token || loginResponse.data.token || loginResponse.data;
-      console.log("✅ Token recibido correctamente.");
+
+      const data = loginResponse.data;
+      token = data.access_token || data.token || data;
+      
+      console.log("✅ LOGIN EXITOSO.");
+      console.log("------------------------------------------------");
+      console.log("🕵️ ¡AQUÍ ESTÁ TU VERDADERO ID DE COMERCIO! 👇");
+      console.log(JSON.stringify(data, null, 2));
+      console.log("------------------------------------------------");
+
+      // Intentamos pescar el ID correcto automáticamente
+      // TiloPay a veces lo devuelve como 'merchant_id'
+      const detectedId = data.merchant_id || data.user_id || (data.user && data.user.id);
+      
+      if (detectedId) {
+        console.log(`💡 EL CÓDIGO INTELIGENTE CAMBIÓ TU LLAVE POR: ${detectedId}`);
+        KEY_ID = detectedId; 
+      } else {
+        console.log("⚠️ No se encontró ID obvio, usando el de Render.");
+      }
+
     } catch (loginError) {
-      console.error("❌ Falló Login:", loginError.response?.data || loginError.message);
-      return res.status(401).json({ message: "Error de autenticación", detalle: loginError.response?.data });
+      console.error("❌ Falló Login:", loginError.response?.data);
+      return res.status(401).json({ message: "Error Login", detalle: loginError.response?.data });
     }
 
-    // --- 3. CREAR ENLACE ---
+    // --- PASO 2: INTENTO DE PAGO ---
     const orderRef = `ORD-${Date.now()}`; 
     const fullName = cliente?.nombre || "Cliente";
     const nameParts = fullName.split(" ");
 
     const payload = {
-      key: KEY_ID, // <--- AQUÍ USAMOS LA LLAVE LARGA
+      key: KEY_ID, 
       amount: total,
       currency: "CRC",
       bill_to_first_name: nameParts[0],
@@ -52,29 +73,23 @@ router.post('/create-link', async (req, res) => {
       cancel_url: `${FRONTEND}/checkout?status=cancel`
     };
 
-    console.log(`📡 2. Creando pago para tienda: ${KEY_ID.substring(0,5)}...`);
+    console.log(`📡 Probando pago con TIENDA ID: ${KEY_ID}`);
     
-    // Intentamos en APP (misma URL del login)
     try {
         const linkResponse = await axios.post('https://app.tilopay.com/api/v1/process', payload, { 
             headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } 
         });
-        console.log("✅ LINK GENERADO:", linkResponse.data.url);
+        console.log("✅ ¡LINK CREADO!:", linkResponse.data.url);
         return res.json({ url: linkResponse.data.url });
+
     } catch (appError) {
-        // Si falla app.tilopay, probamos api.tilopay (A veces el process está en otro server)
-        console.warn("⚠️ Falló app.tilopay, probando api.tilopay...");
-        const linkResponseBackup = await axios.post('https://api.tilopay.com/api/v1/process', payload, { 
-            headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' } 
-        });
-        console.log("✅ LINK GENERADO (Backup):", linkResponseBackup.data.url);
-        return res.json({ url: linkResponseBackup.data.url });
+        console.error("❌ Error al crear link:", JSON.stringify(appError.response?.data || appError.message));
+        res.status(500).json({ message: "Error TiloPay", detalle: appError.response?.data });
     }
 
   } catch (error) {
-    const errorData = error.response?.data || error.message;
-    console.error("❌ Error Final:", JSON.stringify(errorData, null, 2));
-    res.status(500).json({ message: "Error al generar el pago", detalle: errorData });
+    console.error("❌ Error General:", error.message);
+    res.status(500).json({ message: "Error interno" });
   }
 });
 
