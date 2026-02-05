@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaBoxOpen, FaClock, FaCheckCircle, FaMapMarkerAlt, FaPhone, FaEnvelope, FaTshirt, FaTrash, FaTruck } from 'react-icons/fa'; // 👈 Agregué FaTruck
+import { FaBoxOpen, FaClock, FaCheckCircle, FaMapMarkerAlt, FaPhone, FaEnvelope, FaTshirt, FaTrash, FaTruck } from 'react-icons/fa'; 
 import { toast } from 'react-toastify'; 
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://machoteprincipal.onrender.com/api';
@@ -155,22 +155,18 @@ const OrdersPage = () => {
                         </div>
                       )}
 
-                      {/* 👇 AQUÍ AÑADÍ EL BLOQUE DE ENVÍO 👇 */}
+                      {/* 👇 SOLO EL NOMBRE DEL ENVÍO (SIN PRECIO) 👇 */}
                       {order.shipping && (
-                        <div className="mt-3 p-3 bg-[#111] rounded border border-gray-800 flex justify-between items-center">
-                           <div>
-                              <p className="text-gray-400 text-xs uppercase mb-1 flex items-center gap-1">
-                                <FaTruck size={10}/> Método de Envío:
-                              </p>
-                              <p className="text-white font-bold text-sm">{order.shipping.method}</p>
-                           </div>
-                           <div className="text-right">
-                              <p className="text-gray-500 text-xs">Costo:</p>
-                              <p className="text-[#D4AF37] font-bold">+ ₡{order.shipping.cost?.toLocaleString()}</p>
-                           </div>
+                        <div className="mt-3 p-3 bg-[#111] rounded border border-gray-800">
+                           <p className="text-gray-400 text-xs uppercase mb-1 flex items-center gap-1">
+                             <FaTruck size={10}/> Método de Envío:
+                           </p>
+                           <p className="text-white font-bold text-sm uppercase tracking-wide">
+                             {order.shipping.method}
+                           </p>
                         </div>
                       )}
-                      {/* 👆 FIN DEL BLOQUE AÑADIDO 👆 */}
+                      {/* 👆 FIN DEL BLOQUE 👆 */}
 
                     </div>
                   </div>
@@ -194,7 +190,6 @@ const OrdersPage = () => {
                           <div className="flex-1">
                             <p className="font-bold text-white text-sm">{item.name}</p>
                             
-                            {/* item.version (Jugador/Aficionado) */}
                             {item.version && (
                               <span className="inline-block bg-white text-black text-[10px] font-bold px-1.5 rounded my-1">
                                 {item.version}
