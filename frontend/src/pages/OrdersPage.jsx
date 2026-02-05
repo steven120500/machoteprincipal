@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { FaBoxOpen, FaClock, FaCheckCircle, FaMapMarkerAlt, FaPhone, FaEnvelope, FaTshirt, FaTrash } from 'react-icons/fa';
+import { FaBoxOpen, FaClock, FaCheckCircle, FaMapMarkerAlt, FaPhone, FaEnvelope, FaTshirt, FaTrash, FaTruck } from 'react-icons/fa'; // 👈 Agregué FaTruck
 import { toast } from 'react-toastify'; 
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://machoteprincipal.onrender.com/api';
@@ -61,7 +61,7 @@ const OrdersPage = () => {
               onClick={() => setActiveTab('paid')}
               className={`px-6 py-2 rounded-full font-bold transition flex items-center gap-2 text-sm ${
                 activeTab === 'paid' 
-                ? 'bg-[#D4AF37] text-black shadow-lg' 
+                ? 'bg-green-500 text-black shadow-lg' 
                 : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -107,7 +107,7 @@ const OrdersPage = () => {
                      <span className={`inline-block px-3 py-1 rounded text-xs font-black uppercase tracking-wide mb-2 ${
                         order.status === 'paid' ? 'bg-green-500 text-black' : 'bg-yellow-500 text-black'
                      }`}>
-                        {order.status === 'paid' ? '✅ PAGADO' : '⏳ PENDIENTE'}
+                        {order.status === 'paid' ? 'PAGADO' : 'PENDIENTE'}
                      </span>
                      <p className="text-2xl font-black text-white">₡ {order.total?.toLocaleString()}</p>
                   </div>
@@ -125,10 +125,10 @@ const OrdersPage = () => {
 
                 <div className="p-6 grid md:grid-cols-2 gap-8">
                   
-                  {/* 2. DATOS DEL CLIENTE */}
+                  {/* 2. DATOS DEL CLIENTE Y ENVÍO */}
                   <div>
                     <h3 className="text-gray-500 text-xs font-bold uppercase mb-4 flex items-center gap-2">
-                      <FaMapMarkerAlt /> Datos de Envío
+                      <FaMapMarkerAlt /> Datos de Cliente
                     </h3>
                     <div className="space-y-3 text-sm">
                       <p className="flex items-start gap-3">
@@ -149,11 +149,29 @@ const OrdersPage = () => {
                       </p>
 
                       {order.customer?.address && (
-                        <div className="mt-3 p-3 bg-[#1a1a1a] rounded border border-gray-800">
+                        <div className="mt-3 p-3 bg-[#1a1a1a] rounded border-gray-800">
                           <p className="text-gray-400 text-xs uppercase mb-1">Dirección de entrega:</p>
                           <p className="text-gray-200 leading-relaxed">{order.customer?.address}</p>
                         </div>
                       )}
+
+                      {/* 👇 AQUÍ AÑADÍ EL BLOQUE DE ENVÍO 👇 */}
+                      {order.shipping && (
+                        <div className="mt-3 p-3 bg-[#111] rounded border border-gray-800 flex justify-between items-center">
+                           <div>
+                              <p className="text-gray-400 text-xs uppercase mb-1 flex items-center gap-1">
+                                <FaTruck size={10}/> Método de Envío:
+                              </p>
+                              <p className="text-white font-bold text-sm">{order.shipping.method}</p>
+                           </div>
+                           <div className="text-right">
+                              <p className="text-gray-500 text-xs">Costo:</p>
+                              <p className="text-[#D4AF37] font-bold">+ ₡{order.shipping.cost?.toLocaleString()}</p>
+                           </div>
+                        </div>
+                      )}
+                      {/* 👆 FIN DEL BLOQUE AÑADIDO 👆 */}
+
                     </div>
                   </div>
 
@@ -176,9 +194,9 @@ const OrdersPage = () => {
                           <div className="flex-1">
                             <p className="font-bold text-white text-sm">{item.name}</p>
                             
-                            {/* 👇 AQUÍ ESTÁ EL CAMBIO: Usamos item.version en vez de item.type */}
+                            {/* item.version (Jugador/Aficionado) */}
                             {item.version && (
-                              <span className="inline-block bg-[#D4AF37] text-black text-[10px] font-bold px-1.5 rounded my-1">
+                              <span className="inline-block bg-white text-black text-[10px] font-bold px-1.5 rounded my-1">
                                 {item.version}
                               </span>
                             )}

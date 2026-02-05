@@ -8,7 +8,8 @@ const router = express.Router();
 // --- RUTA 1: CREAR LINK DE PAGO (Y guardar pedido) ---
 router.post('/create-link', async (req, res) => {
   try {
-    const { cliente, total, productos } = req.body;
+    // 👇 1. AGREGAMOS 'envio' AQUÍ PARA RECIBIRLO DEL FRONTEND
+    const { cliente, total, productos, envio } = req.body;
     
     // 1. CREDENCIALES
     const API_USER = process.env.TILOPAY_USER?.trim();
@@ -37,6 +38,11 @@ router.post('/create-link', async (req, res) => {
                 price: prod.precio,
                 image: prod.imgs ? prod.imgs[0] : "" 
             })),
+            // 👇 2. GUARDAMOS EL MÉTODO DE ENVÍO AQUÍ
+            shipping: {
+                method: envio?.metodo || "Estándar",
+                cost: envio?.precio || 0
+            },
             total: total,
             status: 'pending' 
         });

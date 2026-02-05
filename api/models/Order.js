@@ -16,12 +16,18 @@ const orderSchema = new mongoose.Schema({
       name: String,
       size: String,
       color: String,
-      version: String,  // 👈 CORREGIDO: Usamos 'version' en lugar de 'type'
+      version: String,  // ✅ Perfecto, coincide con lo que enviamos
       quantity: { type: Number, default: 1 },
       price: Number,
       image: String 
     }
   ],
+
+  // 👇 AGREGAR ESTO (Necesario para guardar el tipo de envío y costo)
+  shipping: {
+    method: { type: String, default: 'Estándar' }, // Ej: "Correos de Costa Rica"
+    cost: { type: Number, default: 0 }             // Ej: 3500
+  },
 
   total: Number,
   status: { 
