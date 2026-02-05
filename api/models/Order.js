@@ -1,12 +1,11 @@
-import mongoose from 'express';
+import mongoose from 'mongoose'; // 👈 ¡AQUÍ ESTABA EL ERROR! (Debe decir 'mongoose', no 'express')
 
 const orderSchema = new mongoose.Schema({
-  orderId: { type: String, required: true, unique: true }, // Ej: ORD-17562...
+  orderId: { type: String, required: true, unique: true }, 
   
   customer: {
     name: String,
     email: String,
-    // Aquí puedes agregar teléfono o dirección si la pides luego
   },
 
   items: [
@@ -17,7 +16,7 @@ const orderSchema = new mongoose.Schema({
       color: String,
       quantity: { type: Number, default: 1 },
       price: Number,
-      image: String // Guardamos la foto para que la reconozcas rápido
+      image: String 
     }
   ],
 
@@ -25,9 +24,11 @@ const orderSchema = new mongoose.Schema({
   status: { 
     type: String, 
     enum: ['pending', 'paid', 'sent', 'cancelled'], 
-    default: 'pending' // Todo nace como "Pendiente"
+    default: 'pending'
   },
+  
+  tiloPayToken: String
 
-}, { timestamps: true }); // Guarda la hora de creación automáticamente
+}, { timestamps: true });
 
 export default mongoose.model('Order', orderSchema);
