@@ -1,11 +1,13 @@
-import mongoose from 'mongoose'; // 👈 ¡AQUÍ ESTABA EL ERROR! (Debe decir 'mongoose', no 'express')
+import mongoose from 'mongoose';
 
 const orderSchema = new mongoose.Schema({
-  orderId: { type: String, required: true, unique: true }, 
+  orderId: { type: String, required: true, unique: true },
   
   customer: {
     name: String,
     email: String,
+    phone: String,      // 👈 NUEVO: Teléfono
+    address: String     // 👈 NUEVO: Dirección Completa
   },
 
   items: [
@@ -14,6 +16,7 @@ const orderSchema = new mongoose.Schema({
       name: String,
       size: String,
       color: String,
+      type: String,     // 👈 NUEVO: Versión (Jugador/Fan/Retro)
       quantity: { type: Number, default: 1 },
       price: Number,
       image: String 
