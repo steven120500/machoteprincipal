@@ -1,5 +1,6 @@
 import express from 'express';
 import axios from 'axios';
+import Order from '../models/Order.js'; // <--- 1. IMPORTAMOS EL MODELO
 
 const router = express.Router();
 
@@ -7,19 +8,49 @@ router.post('/create-link', async (req, res) => {
   try {
     const { cliente, total, productos } = req.body;
     
-    // 1. CREDENCIALES
+    // --- 1. CREDENCIALES ---
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
-    const API_KEY = process.env.TILOPAY_API_KEY?.trim(); // Aquí va la LLAVE LARGA
+    const API_KEY = process.env.TILOPAY_API_KEY?.trim(); 
     const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
 
-    console.log(`🚀 INICIANDO PAGO (ENDPOINT CORRECTO: processPayment)`);
+    // --- 2. GENERAR ID ÚNICO ---
+    const orderRef = `ORD-${Date.now()}`; 
 
-    if (!API_USER || !API_PASSWORD || !API_KEY) {
-      return res.status(500).json({ message: "Faltan credenciales en Render." });
+    // --- 3. GUARDAR EN BASE DE DATOS (PENDIENTE) ---
+    // Esto es lo nuevo: Guardamos qué quiere comprar el cliente
+    try {
+        const newOrder = new Order({
+            orderId: orderRef,
+            customer: {
+                name: cliente?.nombre || "Cliente",
+                email: cliente?.correo || "sin_correo@email.com"
+            },
+            items: productos.map(prod => ({
+                product_id: prod._id || prod.id, 
+                name: prod.nombre || prod.title,
+                size: prod.tallaSeleccionada || "Estándar",
+                quantity: prod.cantidad || 1,
+                price: prod.precio,
+                image: prod.imgs ? prod.imgs[0] : "" // Guardamos la foto para referencia
+            })),
+            total: total,
+            status: 'pending' // Nace pendiente
+        });
+
+        await newOrder.save();
+        console.log(`📝 Pedido ${orderRef} guardado en MongoDB.`);
+
+    } catch (dbError) {
+        console.error("❌ Error guardando pedido:", dbError);
+        return res.status(500).json({ message: "Error al crear el pedido en el sistema" });
     }
 
-    // 2. LOGIN (Obtener Token) - ESTO YA FUNCIONA
+    // --- 4. LOGIN TILOPAY ---
+    if (!API_USER || !API_PASSWORD || !API_KEY) {
+      return res.status(500).json({ message: "Faltan credenciales" });
+    }
+
     let token = "";
     try {
       const loginResponse = await axios.post('https://app.tilopay.com/api/v1/login', {
@@ -27,44 +58,33 @@ router.post('/create-link', async (req, res) => {
         password: API_PASSWORD
       });
       token = loginResponse.data.access_token || loginResponse.data.token || loginResponse.data;
-      console.log("✅ Token obtenido.");
-    } catch (e) { return res.status(401).json({message: "Error Login"}); }
+    } catch (e) { return res.status(401).json({message: "Error Login TiloPay"}); }
 
-    // 3. CREAR PAGO (Configuración según tu documentación)
-    const orderRef = `ORD-${Date.now()}`; 
+    // --- 5. CREAR LINK DE PAGO ---
     const fullName = cliente?.nombre || "Cliente General";
-    // Separamos nombre y apellido porque TiloPay los pide aparte
     const nameParts = fullName.trim().split(" ");
-    const firstName = nameParts[0];
-    const lastName = nameParts.slice(1).join(" ") || "Cliente";
-
+    
     const payload = {
-      // Campos obligatorios según tu captura de Postman
-      key: API_KEY, // La llave larga
+      key: API_KEY, 
       amount: total,
       currency: "CRC",
-      redirect: `${FRONTEND}/checkout?status=success`, // Según docs se llama 'redirect'
+      redirect: `${FRONTEND}/checkout?status=success&order=${orderRef}`, // <--- Avisamos cuál orden es
       
-      // Datos del Cliente (Formato CamelCase como en la foto)
-      billToFirstName: firstName,
-      billToLastName: lastName,
+      billToFirstName: nameParts[0],
+      billToLastName: nameParts.slice(1).join(" ") || "Cliente",
       billToEmail: cliente?.correo || "cliente@email.com",
-      billToTelephone: "88888888", // Dato obligatorio, ponemos uno default si no hay
-      billToAddress: "San Jose, Costa Rica", // Dato obligatorio
-      billToCity: "San Jose", // Dato obligatorio
-      billToState: "San Jose", // Dato obligatorio
-      billToZipPostCode: "10101", // Dato obligatorio
-      billToCountry: "CR", // Dato obligatorio (ISO código de Costa Rica)
+      billToTelephone: "88888888",
+      billToAddress: "San Jose",
+      billToCity: "San Jose",
+      billToState: "San Jose",
+      billToZipPostCode: "10101",
+      billToCountry: "CR",
       
-      // Extras
-      orderNumber: orderRef,
+      orderNumber: orderRef, // <--- CONECTAMOS: El ID de TiloPay es igual al de MongoDB
       description: `Compra FutStore - ${productos?.length || 1} items`
     };
-
-    console.log(`📡 Enviando a /processPayment con Key: ${API_KEY.substring(0,5)}...`);
     
     try {
-        // CAMBIO CRUCIAL: La URL exacta de tu captura
         const linkResponse = await axios.post('https://app.tilopay.com/api/v1/processPayment', payload, { 
             headers: { 
               'Authorization': `Bearer ${token}`, 
@@ -73,13 +93,11 @@ router.post('/create-link', async (req, res) => {
             } 
         });
         
-        console.log("✅ RESPUESTA TILOPAY:", JSON.stringify(linkResponse.data));
-        
-        // Según docs, devuelve { url: "..." }
+        console.log("✅ Link generado para orden:", orderRef);
         return res.json({ url: linkResponse.data.url });
 
     } catch (appError) {
-        console.error("❌ Error TiloPay:", JSON.stringify(appError.response?.data || appError.message));
+        console.error("❌ Error TiloPay:", JSON.stringify(appError.response?.data));
         res.status(500).json({ message: "Error TiloPay", detalle: appError.response?.data });
     }
 
