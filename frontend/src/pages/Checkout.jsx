@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useCart } from '../context/CartContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom'; // 👈 Agregamos useLocation
 import { FaArrowLeft, FaLock, FaMapMarkerAlt, FaTruck, FaTrash, FaWhatsapp, FaCreditCard } from 'react-icons/fa';
 import { toast } from 'react-toastify';
 
@@ -16,8 +16,9 @@ const GAM_CANTONES = {
 const API_BASE = "https://machoteprincipal.onrender.com"; 
 
 export default function Checkout() {
-  const { cart, cartTotal, removeFromCart } = useCart();
+  const { cart, cartTotal, removeFromCart, clearCart } = useCart(); // 👈 Traemos clearCart
   const navigate = useNavigate();
+  const location = useLocation(); // 👈 Para leer la URL al volver de TiloPay
   
   // Estados de Ubicación
   const [provincias, setProvincias] = useState({});
@@ -34,6 +35,7 @@ export default function Checkout() {
   const [metodoPago, setMetodoPago] = useState("tarjeta");
   
   const [loadingPay, setLoadingPay] = useState(false);
+  const [verifyingPayment, setVerifyingPayment] = useState(false); // 👈 Nuevo estado para la pantalla de carga
 
   const [formData, setFormData] = useState({
     nombre: '',
@@ -41,6 +43,50 @@ export default function Checkout() {
     direccionExacta: '',
     correo: ''
   });
+
+  // --- NUEVO: DETECTAR REGRESO DE TILOPAY ---
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    const status = query.get("status");
+    const orderId = query.get("order");
+
+    if (status === "success" && orderId) {
+      confirmarPagoBackend(orderId);
+    } else if (status === "cancel") {
+      toast.error("El pago fue cancelado.");
+      // Limpiamos la URL para que no salga el error si recarga
+      navigate('/checkout', { replace: true });
+    }
+  }, [location]);
+
+  const confirmarPagoBackend = async (orderId) => {
+    try {
+      setVerifyingPayment(true);
+      
+      const res = await fetch(`${API_BASE}/api/tilopay/confirm-payment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ orderId })
+      });
+
+      const data = await res.json();
+
+      if (data.success || data.status === 'paid') {
+        toast.success("¡Pago exitoso! Tu orden ha sido procesada.");
+        clearCart(); // 🗑️ Limpiamos carrito visual
+        navigate("/pedidos"); // 🚀 Mandamos al usuario a ver sus pedidos
+      } else {
+        toast.warning("Pago recibido, pero hubo un error actualizando el estado.");
+      }
+      
+    } catch (error) {
+      console.error("Error confirmando:", error);
+      toast.error("Error de conexión al verificar el pago.");
+    } finally {
+      setVerifyingPayment(false);
+    }
+  };
+  // ------------------------------------------
 
   // 1. Cargar Provincias
   useEffect(() => {
@@ -128,7 +174,6 @@ export default function Checkout() {
 
     // --- OPCIÓN A: PAGO POR SINPE (WHATSAPP MEJORADO) ---
     if (metodoPago === 'sinpe') {
-        // Construimos el mensaje línea por línea para asegurar formato
         let mensaje = `*NUEVO PEDIDO - FUTSTORE*\n`;
         mensaje += `────────────────\n`;
         mensaje += `Cliente: ${formData.nombre}\n`;
@@ -144,10 +189,8 @@ export default function Checkout() {
 
         mensaje += `*DETALLE DE PRODUCTOS:*\n`;
         cart.forEach(item => {
-          // Intentamos obtener la versión (type), si no existe, no ponemos nada
           const version = item.type ? `[${item.type}]` : '';
           const precioItem = (item.discountPrice || item.price).toLocaleString();
-          
           mensaje += `*${item.quantity}x ${item.name}* ${version}\n`;
           mensaje += `   └ Talla: ${item.selectedSize}\n`;
           mensaje += `   └ Precio c/u: ₡${precioItem}\n`;
@@ -158,7 +201,6 @@ export default function Checkout() {
         mensaje += `*Método de Pago:* SINPE MÓVIL\n\n`;
         mensaje += `Quedo atento a la cuenta SINPE para enviar el comprobante. ✅`;
 
-        // Abrir WhatsApp con codificación segura
         window.open(`https://wa.me/50672327096?text=${encodeURIComponent(mensaje)}`, '_blank');
         return;
     }
@@ -173,11 +215,13 @@ export default function Checkout() {
             direccion: `${nombreProvincia}, ${nombreCanton}, ${nombreDistrito}. ${formData.direccionExacta}`
           },
           productos: cart.map(item => ({
+            _id: item._id || item.id, // Aseguramos mandar el ID
             nombre: item.name,
             precio: item.discountPrice || item.price,
             cantidad: item.quantity,
-            talla: item.selectedSize,
-            version: item.type // Enviamos la versión al backend también
+            tallaSeleccionada: item.selectedSize, // Nombre consistente con Backend
+            version: item.type,
+            imgs: [item.imageSrc] // Mandamos la imagen para guardarla
           })),
           envio: {
             metodo: envioSeleccionado.nombre,
@@ -214,6 +258,18 @@ export default function Checkout() {
     }
   };
 
+  // --- RENDERIZADO DE PANTALLA DE CARGA AL VOLVER ---
+  if (verifyingPayment) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-black text-white px-4 text-center">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-[#D4AF37] mb-6"></div>
+        <h2 className="text-2xl font-bold text-[#D4AF37] animate-pulse">Verificando tu pago...</h2>
+        <p className="text-gray-400 mt-2">Por favor no cierres esta ventana.</p>
+      </div>
+    );
+  }
+
+  // --- RENDERIZADO CARRITO VACÍO ---
   if (cart.length === 0) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 pt-20 px-4 text-center">
@@ -348,19 +404,18 @@ export default function Checkout() {
           </form>
         </div>
 
-        {/* --- DERECHA: RESUMEN (Ahora muestra Versión) --- */}
+        {/* --- DERECHA: RESUMEN --- */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-fit lg:sticky lg:top-28">
           <h3 className="font-bold text-lg mb-4 border-b pb-2">Resumen del Pedido</h3>
           <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 custom-scrollbar">
             {cart.map((item, index) => (
               <div key={`${item._id}-${index}`} className="flex gap-4 items-start border-b border-gray-50 pb-4 last:border-0">
                 <div className="w-16 h-16 bg-gray-100 rounded-md border overflow-hidden flex-shrink-0 relative">
-                    <img src={item.imageSrc || 'https://via.placeholder.com/80'} className="w-full h-full object-contain" />
+                    <img src={item.imageSrc || 'https://via.placeholder.com/80'} className="w-full h-full object-contain" alt={item.name} />
                 </div>
                 <div className="flex-1 flex justify-between">
                   <div className="pr-2">
                     <p className="font-bold text-xs uppercase line-clamp-2 leading-tight mb-1">{item.name}</p>
-                    {/* 👇 AQUÍ MOSTRAMOS LA VERSIÓN SI EXISTE */}
                     {item.type && <span className="text-[10px] bg-black text-white px-1.5 py-0.5 rounded font-bold">{item.type}</span>}
                     
                     <p className="text-[10px] text-gray-500 mt-1">Talla: <span className="font-bold text-black">{item.selectedSize}</span> | Cant: {item.quantity}</p>
