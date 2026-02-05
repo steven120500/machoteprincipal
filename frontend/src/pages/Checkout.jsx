@@ -71,14 +71,17 @@ export default function Checkout() {
       const data = await res.json();
 
       if (data.success || data.status === 'paid') {
-        toast.success("¡Pago exitoso! Te enviamos un correo de confirmación.");
-        clearCart(); // 🗑️ Limpiamos carrito visual
+        // 1. Mensaje de éxito
+        toast.success("¡Pago exitoso! Te enviamos los detalles por correo.");
         
-        // --- CAMBIO AQUÍ: REDIRIGIR A PANTALLA DE CONFIRMACIÓN ---
-        navigate("/confirmacion", { state: { orderId: orderId } });
-        // ---------------------------------------------------------
+        // 2. Limpiar Carrito
+        clearCart(); 
+        
+        // 3. Redirigir al INICIO (Catálogo)
+        navigate("/"); 
       } else {
         toast.warning("Pago recibido, pero hubo un error actualizando el estado.");
+        navigate("/"); // Por seguridad, al inicio
       }
       
     } catch (error) {

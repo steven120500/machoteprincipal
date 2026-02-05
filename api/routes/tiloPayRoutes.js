@@ -2,8 +2,6 @@ import express from 'express';
 import axios from 'axios';
 import Order from '../models/Order.js'; 
 import Product from '../models/Product.js'; 
-// 👇 1. IMPORTAMOS EL SERVICIO DE CORREO (Asegúrate de crear este archivo luego)
-import { enviarCorreoConfirmacion } from '../utils/mailer.js'; 
 
 const router = express.Router();
 
@@ -16,7 +14,7 @@ router.post('/create-link', async (req, res) => {
     const API_USER = process.env.TILOPAY_USER?.trim();
     const API_PASSWORD = process.env.TILOPAY_PASSWORD?.trim();
     const API_KEY = process.env.TILOPAY_API_KEY?.trim(); 
-    const FRONTEND = process.env.FRONTEND_URL || "https://machote.onrender.com";
+    const FRONTEND = process.env.FRONTEND_URL || "https://machoteprincipal.onrender.com";
 
     const orderRef = `ORD-${Date.now()}`; 
 
@@ -71,7 +69,7 @@ router.post('/create-link', async (req, res) => {
       key: API_KEY, 
       amount: total,
       currency: "CRC",
-      // 👇 Aseguramos que redirija con status=success
+      // 👇 Redirige al frontend para que este limpie el carrito y mande al inicio
       redirect: `${FRONTEND}/checkout?status=success&order=${orderRef}`,
       
       billToFirstName: nameParts[0],
@@ -126,18 +124,9 @@ router.post('/confirm-payment', async (req, res) => {
     // Marcar como pagado
     order.status = 'paid';
     await order.save();
-
-    // 👇 2. ENVIAR CORREO DE CONFIRMACIÓN
-    try {
-      console.log(`📧 Intentando enviar correo a: ${order.customer.email}`);
-      await enviarCorreoConfirmacion(order);
-      console.log("✅ Correo enviado con éxito.");
-    } catch (emailError) {
-      console.error("⚠️ Error enviando correo (pero el pago sí pasó):", emailError);
-      // No hacemos return error, porque el pago YA se procesó. Solo logueamos el error.
-    }
     
-    res.json({ success: true, message: "Pago confirmado, stock actualizado y correo enviado" });
+    // Sin enviar correo, solo respondemos éxito
+    res.json({ success: true, message: "Pago confirmado y stock actualizado" });
 
   } catch (error) { 
     console.error("Error confirmando pago:", error);
